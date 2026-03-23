@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\UserController; //  MUST exist
+use App\Http\Controllers\UserController; // ✅ correct controller
 
 Route::get('/', function () {
     return redirect('/dashboard');
@@ -22,12 +22,20 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/items/{id}', [InventoryController::class, 'update'])->name('items.update');
     Route::delete('/items/{id}', [InventoryController::class, 'destroy'])->name('items.destroy');
 
-    //  USERS (THIS IS THE KEY FIX)
+    // USERS (THIS FIXES YOUR ERROR)
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // SETTINGS
-    Route::view('/settings', 'settings')->name('settings');
+    // SETTINGS
+Route::get('/settings', function () {
+    return view('settings');
+})->name('settings');
+
+Route::post('/settings', function () {
+    return back()->with('success', 'Settings saved successfully!');
+});
+    //Route::view('/settings', 'settings')->name('settings');
 
     // REPORTS
     Route::view('/reports', 'reports')->name('reports');

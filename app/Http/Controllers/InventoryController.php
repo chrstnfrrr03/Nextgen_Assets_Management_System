@@ -10,6 +10,7 @@ class InventoryController extends Controller
     public function index()
     {
         $items = Item::latest()->paginate(10);
+
         return view('items', compact('items'));
     }
 
@@ -25,7 +26,7 @@ class InventoryController extends Controller
         Item::create($validated);
 
         return redirect()->route('items')
-            ->with('success', 'Item added successfully');
+            ->with('success', 'Asset added successfully');
     }
 
     public function update(Request $request, $id)
@@ -35,14 +36,14 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'part_no' => 'required|string|max:255',
             'brand' => 'required|string|max:255',
-            '_name' => 'required|string|max:255',
+            'part_name' => 'required|string|max:255', // ✅ FIXED
             'description' => 'required|string|max:255',
         ]);
 
         $item->update($validated);
 
         return redirect()->route('items')
-            ->with('success', 'Item updated successfully');
+            ->with('success', 'Asset updated successfully');
     }
 
     public function destroy($id)
@@ -50,6 +51,6 @@ class InventoryController extends Controller
         Item::findOrFail($id)->delete();
 
         return redirect()->route('items')
-            ->with('success', 'Item deleted successfully');
+            ->with('success', 'Asset deleted successfully');
     }
 }
