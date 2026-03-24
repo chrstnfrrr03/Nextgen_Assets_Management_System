@@ -55,6 +55,13 @@
 
                 <!-- MANAGEMENT -->
                 <p class="mt-6 mb-2 text-xs text-gray-500 uppercase">Management</p>
+            <!-- #region-->
+                
+                <a href="/suppliers"
+                    class="flex items-center gap-3 px-4 py-2 rounded-lg transition
+                                    <?php echo e(request()->is('suppliers') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'); ?>">
+                    Suppliers
+                </a>
 
                 
                 <a href="/users"

@@ -14,7 +14,7 @@
         <!-- HEADER -->
         <div>
             <h1 class="text-3xl font-bold text-slate-800">
-                Users Management
+                User Management
             </h1>
             <p class="text-sm text-gray-500">
                 Manage system users and access
@@ -76,11 +76,18 @@
                             </td>
 
                             <!-- ACTIONS -->
+                            <!-- ACTIONS -->
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center gap-2">
 
-                                    <!-- DELETE -->
-                                    <form method="POST" action="/users/<?php echo e($user->id); ?>">
+                                    <!--  EDIT BUTTON -->
+                                    <a href="<?php echo e(route('users.edit', $user->id)); ?>"
+                                        class="px-3 py-1 text-xs font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600">
+                                        Edit
+                                    </a>
+
+                                    <!--  DELETE BUTTON -->
+                                    <form method="POST" action="<?php echo e(route('users.destroy', $user->id)); ?>">
                                         <?php echo csrf_field(); ?>
                                         <?php echo method_field('DELETE'); ?>
 
@@ -89,6 +96,9 @@
                                             Delete
                                         </button>
                                     </form>
+
+                                </div>
+                            </td>
 
                                 </div>
                             </td>

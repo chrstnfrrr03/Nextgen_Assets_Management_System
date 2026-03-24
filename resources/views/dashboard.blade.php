@@ -127,10 +127,16 @@
                         Manage Assets
                     </a>
 
-                    <a href="#"
+                
+
+            
+
+                    <!-- SYSTEM SUMMARY-->
+                    <a href="/settings"
                         class="block w-full px-4 py-2 text-sm text-center rounded-lg bg-slate-100 hover:bg-slate-200">
                         Settings
                     </a>
+
 
                 </div>
 
