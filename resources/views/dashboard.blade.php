@@ -1,27 +1,54 @@
-
 <x-app-layout>
 
-    <div class="space-y-10">
+    <div class="space-y-8">
 
-        <!-- HEADER -->
+        <!-- ============================= -->
+        <!-- HEADER + GREETING -->
+        <!-- ============================= -->
         <div class="flex items-center justify-between">
+
             <div>
+                <!-- Dynamic Greeting -->
+                @php
+                    $hour = now()->format('H');
+
+                    if ($hour < 12) {
+                        $greeting = 'Good Morning ';
+                    } elseif ($hour < 18) {
+                        $greeting = 'Good Afternoon ';
+                    } else {
+                        $greeting = 'Good Evening ';
+                    }
+                @endphp
+
                 <h1 class="text-3xl font-bold text-slate-800">
-                    Dashboard
+                    {{ $greeting }}, {{ Auth::user()->name ?? 'User' }}
                 </h1>
+
                 <p class="text-sm text-gray-500">
-                    Overview of your assets and system activity
+                    Here’s what’s happening in your system today
                 </p>
             </div>
 
-            <!-- QUICK ACTION -->
+            <!-- Quick Action -->
             <a href="/products"
                 class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow hover:bg-blue-700">
                 + Add Asset
             </a>
+
         </div>
 
+        <!-- ============================= -->
+        <!-- SEARCH BAR -->
+        <!-- ============================= -->
+        <div class="p-4 bg-white shadow rounded-xl">
+            <input type="text" placeholder="Search products, suppliers, users..."
+                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- ============================= -->
         <!-- STATS -->
+        <!-- ============================= -->
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 
             <div class="p-6 text-white shadow-lg rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700">
@@ -41,10 +68,14 @@
 
         </div>
 
-        <!-- GRID -->
+        <!-- ============================= -->
+        <!-- MAIN GRID -->
+        <!-- ============================= -->
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-            <!-- RECENT ASSETS -->
+            <!-- ============================= -->
+            <!-- RECENT PRODUCTS -->
+            <!-- ============================= -->
             <div class="p-6 bg-white shadow-lg lg:col-span-2 rounded-2xl">
 
                 <div class="flex items-center justify-between mb-4">
@@ -87,41 +118,60 @@
 
             </div>
 
-            <!-- SYSTEM SUMMARY -->
-            <div class="p-6 bg-white shadow-lg rounded-2xl">
+            <!-- ============================= -->
+            <!-- RIGHT PANEL -->
+            <!-- ============================= -->
+            <div class="space-y-6">
 
-                <h3 class="mb-4 font-semibold text-gray-700">
-                    System Summary
-                </h3>
+                <!-- SYSTEM SUMMARY -->
+                <div class="p-6 bg-white shadow-lg rounded-2xl">
 
-                <div class="space-y-4 text-sm">
+                    <h3 class="mb-4 font-semibold text-gray-700">
+                        System Summary
+                    </h3>
 
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Total Assets</span>
-                        <span class="font-semibold">{{ $totalProducts }}</span>
+                    <div class="space-y-3 text-sm">
+
+                        <div class="flex justify-between">
+                            <span>Total Assets</span>
+                            <span class="font-semibold">{{ $totalProducts }}</span>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <span>Brands</span>
+                            <span class="font-semibold">{{ $totalBrands }}</span>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <span>Status</span>
+                            <span class="font-semibold text-green-500">Active</span>
+                        </div>
+
                     </div>
 
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Brands</span>
-                        <span class="font-semibold">{{ $totalBrands }}</span>
-                    </div>
+                </div>
 
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">System Status</span>
-                        <span class="font-semibold text-green-500">Active</span>
-                    </div>
+                <!-- ============================= -->
+                <!-- NOTIFICATIONS -->
+                <!-- ============================= -->
+                <div class="p-6 bg-white shadow-lg rounded-2xl">
 
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Last Update</span>
-                        <span class="font-semibold text-gray-700">
-                            {{ now()->format('M d, Y') }}
-                        </span>
+                    <h3 class="mb-4 font-semibold text-gray-700">
+                        Notifications
+                    </h3>
+
+                    <div class="space-y-3 text-sm text-gray-600">
+
+                        <div> {{ $latestProducts->count() }} new assets added</div>
+                        <div> {{ \App\Models\User::count() }} users in system</div>
+                        <div> {{ \App\Models\Supplier::count() }} suppliers registered</div>
+
                     </div>
 
                 </div>
 
                 <!-- ACTIONS -->
-                <div class="mt-6 space-y-2">
+                <div class="space-y-2">
 
                     <a href="/products"
                         class="block w-full px-4 py-2 text-sm text-center rounded-lg bg-slate-100 hover:bg-slate-200">
