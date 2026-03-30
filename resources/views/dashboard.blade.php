@@ -4,11 +4,46 @@
 
         <!-- HEADER -->
         <div class="flex items-center justify-between">
+       
+            <!--Time -->
+        <div class="flex items-center justify-between mt-2">
+            <p class="text-sm text-gray-500">
+                Asset overview and system activity
+            </p>
+        
+            <!-- PORT MORESBY TIME -->
+            <div class="px-4 py-2 text-sm font-semibold bg-gray-100 rounded-lg shadow">
+                Time
+                <span id="png-time" class="ml-2 text-indigo-600"></span>
+            </div>
+        </div>
+
+            <!-- Function-->
+            <script>
+                function updatePNGTime() {
+                    const options = {
+                        timeZone: "Pacific/Port_Moresby",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: true
+                    };
+
+                    const formatter = new Intl.DateTimeFormat([], options);
+                    document.getElementById("png-time").textContent = formatter.format(new Date());
+                }
+
+                setInterval(updatePNGTime, 1000);
+                updatePNGTime();
+            </script>
+
+            <!--End of Port Moresby Time-->
+
 
             <div>
                 @php
-                    $hour = now()->format('H');
-                    $greeting = $hour < 12 ? 'Good Morning' : ($hour < 18 ? 'Good Afternoon' : 'Good Evening');
+$hour = now()->format('H');
+$greeting = $hour < 12 ? 'Good Morning' : ($hour < 18 ? 'Good Afternoon' : 'Good Evening');
                 @endphp
 
                 <h1 class="text-3xl font-bold text-slate-800">
@@ -21,7 +56,7 @@
             </div>
 
             <!-- SEARCH -->
-            <form method="GET" action="{{ route('dashboard') }}" class="flex gap-2">
+            <form method="GET" action="{{ route('products') }}" class="flex gap-2">
 
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Search assets..."
                     class="w-64 px-4 py-2 border rounded-lg">
