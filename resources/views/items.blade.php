@@ -8,6 +8,12 @@
                 <h1 class="text-3xl font-bold text-slate-800">Asset Management</h1>
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
+
+            <!-- 🔥 EXPORT BUTTON -->
+            <a href="{{ route('assets.export') }}"
+               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl shadow hover:bg-blue-700">
+                Export CSV
+            </a>
         </div>
 
         <!-- TABLE CARD -->
@@ -47,7 +53,7 @@
                             <td class="px-6 py-4">
                                 @php $status = $item->status ?? 'available'; @endphp
 
-                                <span class="px-2 py-1 text-xs font-medium rounded-full
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full
                                 {{ $status == 'available' ? 'bg-green-100 text-green-700' : '' }}
                                 {{ $status == 'assigned' ? 'bg-yellow-100 text-yellow-700' : '' }}
                                 {{ $status == 'maintenance' ? 'bg-red-100 text-red-700' : '' }}">
@@ -79,14 +85,14 @@
                                         class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
                                         <option value="available" {{ $item->status == 'available' ? 'selected' : '' }}>
                                             Available</option>
-                                        <option value="assigned" {{ $item->status == 'assigned' ? 'selected' : '' }}>Assigned
-                                        </option>
+                                        <option value="assigned" {{ $item->status == 'assigned' ? 'selected' : '' }}>
+                                            Assigned</option>
                                         <option value="maintenance" {{ $item->status == 'maintenance' ? 'selected' : '' }}>
                                             Maintenance</option>
                                     </select>
 
                                     <!-- SAVE BUTTON -->
-                                    <button class="px-3 py-1 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                                    <button class="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
                                         Save
                                     </button>
                                 </form>

@@ -32,11 +32,7 @@ class ItemController extends Controller
         $suppliers = Supplier::all();
         $users = User::all();
 
-        // ✅ FIX: LOAD RELATIONS
-        $logs = AssetLog::with(['user','item'])
-            ->latest()
-            ->take(20)
-            ->get();
+        $logs = AssetLog::with(['user','item'])->latest()->take(20)->get();
 
         return view('items', compact(
             'items',
@@ -120,5 +116,57 @@ class ItemController extends Controller
         $item->delete();
 
         return redirect()->back()->with('success', 'Asset deleted successfully');
+    }
+
+    // ✅ CSV EXPORT (FIXED)
+    public function export()
+    {
+        $items = Item::with(['user','category','supplier'])->get();
+
+        if ($items->isEmpty()) {
+            return redirect()->back()->with('error', 'No assets to export');
+        }
+
+        $filename = "assets_report_" . date('Y-m-d_H-i-s') . ".csv";
+
+        $headers = [
+            "Content-Type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=\"$filename\"",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate",
+            "Expires" => "0",
+        ];
+
+        $callback = function () use ($items) {
+            $file = fopen('php://output', 'w');
+
+            fputcsv($file, [
+                'Code',
+                'Brand',
+                'Name',
+                'Category',
+                'Supplier',
+                'Assigned To',
+                'Status',
+                'Created At'
+            ]);
+
+            foreach ($items as $item) {
+                fputcsv($file, [
+                    $item->part_no,
+                    $item->brand,
+                    $item->part_name,
+                    optional($item->category)->name,
+                    optional($item->supplier)->name,
+                    optional($item->user)->name ?? '-',
+                    strtoupper($item->status),
+                    $item->created_at,
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->streamDownload($callback, $filename, $headers);
     }
 }
