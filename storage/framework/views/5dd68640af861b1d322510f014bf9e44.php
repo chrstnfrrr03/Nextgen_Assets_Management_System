@@ -18,9 +18,9 @@
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
 
-            <!-- 🔥 EXPORT BUTTON -->
+            <!-- EXPORT BUTTON -->
             <a href="<?php echo e(route('assets.export')); ?>"
-               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl shadow hover:bg-blue-700">
+               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
                 Export CSV
             </a>
         </div>
@@ -30,7 +30,7 @@
 
             <div class="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
                 <h3 class="font-semibold text-gray-700">All Assets</h3>
-                <span class="text-sm text-gray-400">Total: <?php echo e($items->count()); ?></span>
+                <span class="text-sm text-gray-400">Total: <?php echo e($items->total()); ?></span>
             </div>
 
             <table class="w-full text-sm">
@@ -119,6 +119,12 @@
                 </tbody>
             </table>
 
+            <!--  PAGINATION (ADDED) -->
+            <div class="p-4">
+                <?php echo e($items->links()); ?>
+
+            </div>
+
         </div>
 
         <!-- ACTIVITY LOG -->
@@ -136,7 +142,6 @@
 
                         <div class="flex items-center gap-2">
 
-                            <!-- ACTION BADGE -->
                             <span class="px-2 py-1 text-xs font-medium rounded-full
                                 <?php echo e($log->action == 'created' ? 'bg-green-100 text-green-700' : ''); ?>
 
@@ -147,7 +152,6 @@
 
                             </span>
 
-                            <!-- TEXT -->
                             <span class="text-gray-700">
                                 <?php echo e(optional($log->item)->part_name ?? 'Asset'); ?>
 
@@ -160,7 +164,6 @@
 
                         </div>
 
-                        <!-- TIME -->
                         <span class="text-xs text-gray-400">
                             <?php echo e($log->created_at?->diffForHumans()); ?>
 

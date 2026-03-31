@@ -56,7 +56,7 @@ class DashboardController extends Controller
         }
 
         // =============================
-        // MONTHLY ANALYTICS (🔥 BIG FEATURE)
+        // MONTHLY ANALYTICS ( BIG FEATURE)
         // =============================
         $monthlyAssets = [];
 

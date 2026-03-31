@@ -9,9 +9,9 @@
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
 
-            <!-- 🔥 EXPORT BUTTON -->
+            <!-- EXPORT BUTTON -->
             <a href="{{ route('assets.export') }}"
-               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl shadow hover:bg-blue-700">
+               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
                 Export CSV
             </a>
         </div>
@@ -21,7 +21,7 @@
 
             <div class="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
                 <h3 class="font-semibold text-gray-700">All Assets</h3>
-                <span class="text-sm text-gray-400">Total: {{ $items->count() }}</span>
+                <span class="text-sm text-gray-400">Total: {{ $items->total() }}</span>
             </div>
 
             <table class="w-full text-sm">
@@ -105,6 +105,11 @@
                 </tbody>
             </table>
 
+            <!--  PAGINATION (ADDED) -->
+            <div class="p-4">
+                {{ $items->links() }}
+            </div>
+
         </div>
 
         <!-- ACTIVITY LOG -->
@@ -122,7 +127,6 @@
 
                         <div class="flex items-center gap-2">
 
-                            <!-- ACTION BADGE -->
                             <span class="px-2 py-1 text-xs font-medium rounded-full
                                 {{ $log->action == 'created' ? 'bg-green-100 text-green-700' : '' }}
                                 {{ $log->action == 'updated' ? 'bg-blue-100 text-blue-700' : '' }}
@@ -130,7 +134,6 @@
                                 {{ ucfirst($log->action) }}
                             </span>
 
-                            <!-- TEXT -->
                             <span class="text-gray-700">
                                 {{ optional($log->item)->part_name ?? 'Asset' }}
                             </span>
@@ -141,7 +144,6 @@
 
                         </div>
 
-                        <!-- TIME -->
                         <span class="text-xs text-gray-400">
                             {{ $log->created_at?->diffForHumans() }}
                         </span>
