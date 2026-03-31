@@ -27,7 +27,9 @@ class ItemController extends Controller
             });
         }
 
-        $items = $query->latest()->paginate(10);
+        $items = $query->latest()->paginate(10)
+                  ->withQueryString()
+                  ;
         $categories = Category::all();
         $suppliers = Supplier::all();
         $users = User::all();
@@ -43,7 +45,12 @@ class ItemController extends Controller
             'logs'
         ));
     }
-
+       
+    //Create function
+    public function create()
+       {
+        return view('items-create');
+       }
     public function store(Request $request)
     {
         $request->validate([
@@ -118,7 +125,7 @@ class ItemController extends Controller
         return redirect()->back()->with('success', 'Asset deleted successfully');
     }
 
-    // ✅ CSV EXPORT (FIXED)
+    //  CSV EXPORT (FIXED)
     public function export()
     {
         $items = Item::with(['user','category','supplier'])->get();

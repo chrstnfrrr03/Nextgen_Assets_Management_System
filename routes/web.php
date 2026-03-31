@@ -57,5 +57,6 @@ Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name(
     // SETTINGS
     Route::get('/settings', [SettingController::class, 'index'])->name('settings');
     Route::post('/settings', [SettingController::class, 'store'])->name('settings.store');
-
+      //Add
+      Route::get('/assets/create', [ItemController::class, 'create'])->name( 'assets.create');
 });

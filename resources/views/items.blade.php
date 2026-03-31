@@ -9,11 +9,22 @@
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
 
-            <!-- EXPORT BUTTON -->
-            <a href="{{ route('assets.export') }}"
-               class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
-                Export CSV
-            </a>
+            <!-- RIGHT ACTIONS -->
+            <div class="flex items-center gap-2">
+
+                <!--  ADD BUTTON (NEW) -->
+                <a href="{{ route('assets.create') }}"
+                   class="px-5 py-2 text-sm font-medium text-white bg-green-600 shadow rounded-xl hover:bg-green-700">
+                    + Add Asset
+                </a>
+
+                <!-- EXPORT BUTTON -->
+                <a href="{{ route('assets.export') }}"
+                   class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
+                    Export CSV
+                </a>
+
+            </div>
         </div>
 
         <!-- TABLE CARD -->
@@ -49,7 +60,7 @@
                                 {{ $item->user->name ?? '-' }}
                             </td>
 
-                            <!-- STATUS BADGE -->
+                            <!-- STATUS -->
                             <td class="px-6 py-4">
                                 @php $status = $item->status ?? 'available'; @endphp
 
@@ -91,7 +102,6 @@
                                             Maintenance</option>
                                     </select>
 
-                                    <!-- SAVE BUTTON -->
                                     <button class="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
                                         Save
                                     </button>
@@ -105,7 +115,7 @@
                 </tbody>
             </table>
 
-            <!--  PAGINATION (ADDED) -->
+            <!-- PAGINATION -->
             <div class="p-4">
                 {{ $items->links() }}
             </div>
