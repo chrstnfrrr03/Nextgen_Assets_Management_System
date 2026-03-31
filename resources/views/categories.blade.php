@@ -27,14 +27,26 @@
         <!-- SEARCH + ADD -->
         <div class="p-6 space-y-4 bg-white border shadow rounded-xl">
 
-            <!-- SEARCH -->
-            <form method="GET" action="{{ route('categories') }}" class="flex gap-2">
+            <!-- SEARCH + FILTER -->
+            <form method="GET" action="{{ route('categories') }}" class="flex flex-wrap gap-2">
+
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Search categories..."
-                    class="w-full px-4 py-2 border rounded-lg">
+                    class="px-4 py-2 border rounded-lg">
+
+                <input type="text" name="name" value="{{ request('name') }}" placeholder="Filter name"
+                    class="px-4 py-2 border rounded-lg">
+
+                <input type="text" name="description" value="{{ request('description') }}"
+                    placeholder="Filter description" class="px-4 py-2 border rounded-lg">
 
                 <button class="px-4 py-2 text-white bg-blue-600 rounded-lg">
-                    Search
+                    Apply
                 </button>
+
+                <a href="{{ route('categories') }}" class="px-4 py-2 text-white bg-gray-500 rounded-lg">
+                    Reset
+                </a>
+
             </form>
 
             <!-- ADD CATEGORY -->
@@ -48,6 +60,7 @@
                 <button class="text-white bg-green-600 rounded-lg hover:bg-green-700">
                     + Add Category
                 </button>
+
             </form>
 
         </div>
@@ -84,21 +97,30 @@
                                 {{ $cat->description ?? '-' }}
                             </td>
 
-                            <!-- COUNT PRODUCTS -->
                             <td class="px-6 py-4 text-gray-500">
                                 {{ $cat->items_count ?? $cat->items->count() ?? 0 }}
                             </td>
 
+                            <!-- ✅ CLEAN ACTIONS -->
                             <td class="px-6 py-4 text-center">
-                                <form method="POST" action="{{ route('categories.destroy', $cat->id) }}">
-                                    @csrf
-                                    @method('DELETE')
+                                <div class="flex justify-center gap-2">
 
-                                    <button onclick="return confirm('Delete this category?')"
-                                        class="px-3 py-1 text-xs text-white bg-red-500 rounded-lg">
-                                        Delete
-                                    </button>
-                                </form>
+                                    <a href="{{ route('categories.edit', $cat->id) }}"
+                                        class="px-3 py-1 text-xs text-white bg-blue-500 rounded-lg hover:bg-blue-600">
+                                        Edit
+                                    </a>
+
+                                    <form method="POST" action="{{ route('categories.destroy', $cat->id) }}">
+                                        @csrf
+                                        @method('DELETE')
+
+                                        <button onclick="return confirm('Delete this category?')"
+                                            class="px-3 py-1 text-xs text-white bg-red-500 rounded-lg">
+                                            Delete
+                                        </button>
+                                    </form>
+
+                                </div>
                             </td>
 
                         </tr>

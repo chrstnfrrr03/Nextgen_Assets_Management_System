@@ -12,34 +12,25 @@ class ItemSeeder extends Seeder
         Item::insert([
 
             [
-                'part_no' => 'LAP-001',
-                'brand' => 'Dell',
-                'part_name' => 'Laptop',
-                'description' => 'Dell Latitude Laptop',
+                'part_no' => 'CCTV-001',
+                'brand' => 'Hikvision',
+                'part_name' => 'CCTV Camera',
+                'description' => 'Outdoor surveillance camera',
+                'category_id' => 1,
+                'status' => 'available',
+                'quantity' => 10,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+
+            [
+                'part_no' => 'WEB-001',
+                'brand' => 'Hostinger',
+                'part_name' => 'Hosting Plan',
+                'description' => 'Business hosting',
+                'category_id' => 2,
                 'status' => 'available',
                 'quantity' => 5,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-
-            [
-                'part_no' => 'PHN-002',
-                'brand' => 'Samsung',
-                'part_name' => 'Galaxy Phone',
-                'description' => 'Samsung Galaxy S21',
-                'status' => 'assigned',
-                'quantity' => 2,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-
-            [
-                'part_no' => 'MON-003',
-                'brand' => 'LG',
-                'part_name' => 'Monitor',
-                'description' => '27 inch monitor',
-                'status' => 'maintenance',
-                'quantity' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

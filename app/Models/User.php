@@ -12,7 +12,7 @@ class User extends Authenticatable
 
     /**
      * =============================
-     * MASS ASSIGNABLE
+     * MASS ASSIGNABLE FIELDS
      * =============================
      */
     protected $fillable = [
@@ -33,7 +33,7 @@ class User extends Authenticatable
 
     /**
      * =============================
-     * HIDDEN
+     * HIDDEN FIELDS
      * =============================
      */
     protected $hidden = [
@@ -41,49 +41,8 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    /**
-     * =============================
-     * CASTS
-     * =============================
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
-
-    /**
-     * =============================
-     * RELATION: USER HAS ASSETS
-     * =============================
-     */
-    public function assets()
-    {
-        return $this->hasMany(Item::class, 'assigned_to');
-    }
-
-    /**
-     * =============================
-     * ROLE HELPERS (PRO LEVEL)
-     * =============================
-     */
-
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isUser()
-    {
-        return $this->role === 'user';
-    }
-
-    /**
-     * =============================
-     * FLEXIBLE PERMISSION CHECK
-     * =============================
-     */
-    public function hasRole($role)
-    {
-        return $this->role === $role;
-    }
 }
