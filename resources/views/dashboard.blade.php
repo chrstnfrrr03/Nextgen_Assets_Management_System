@@ -89,7 +89,7 @@
 
             <div class="p-6 text-white bg-red-500 shadow rounded-xl">
                 <p class="text-sm">Maintenance    </p>
-                
+                <h2 class="text-3xl font-bold">{{ $maintenanceAssets }}</h2>
             </div>
 
         </div>
@@ -125,10 +125,10 @@
                                 <td class="py-3">{{ $asset->brand }}</td>
 
                                 <td class="py-3">
-                                    <spa class="px-2 py-1 text-xs rounded
-                                        @if($asset->status == 'available') bg-green-100 text-green-600
-                                        @elseif($asset->status == 'assigned') bg-yellow-100 text-yellow-600
-                                        @elseif($asset->status == 'maintenance') bg-red-100 text-red-600
+                                    <span class="px-2 py-1 text-xs font-medium rounded
+                                        @if($asset->status == 'available') bg-greenree-100 text-ggren-700
+                                        @elseif($asset->status == 'assigned') bg-yellow100 text-yellowow-700
+                                        @elseif($asset->status == 'maintenance') bg-rose-100 text-rose-700
                                         @endif ">
                                     
                                         {{ ucfirst($asset->status) }}
@@ -136,7 +136,7 @@
                                 </td>
 
                                 <td class="py-3 text-gray-400">
-                                    {{ optional($asset->created_at)->diffForHumans() }}
+                                    {{ $asset->created_at?->diffForHumans() ?? 'N/A' }}
                                 </td>
                             </tr>
                         @empty
