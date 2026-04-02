@@ -9,19 +9,16 @@
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
 
-            <!-- RIGHT ACTIONS -->
             <div class="flex items-center gap-2">
-
                 <a href="{{ route('assets.create') }}"
-                   class="px-5 py-2 text-sm font-medium text-white bg-green-600 shadow rounded-xl hover:bg-green-700">
+                    class="px-5 py-2 text-sm font-medium text-white bg-green-600 shadow rounded-xl hover:bg-green-700">
                     + Add Asset
                 </a>
 
                 <a href="{{ route('assets.export') }}"
-                   class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
+                    class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
                     Export CSV
                 </a>
-
             </div>
         </div>
 
@@ -47,101 +44,107 @@
 
                 <tbody class="divide-y">
 
-                    
                     @foreach($items as $item)
-                                            <tr class="transition hover:bg-slate-50">
+                        <tr class="hover:bg-slate-50">
 
-                                                <td class="px-6 py-4 font-medium">{{ $item->part_no }}</td>
-                                                <td class="px-6 py-4">{{ $item->brand }}</td>
-                                                <td class="px-6 py-4">{{ $item->part_name }}</td>
+                            <td class="px-6 py-4 font-medium">{{ $item->part_no }}</td>
+                            <td class="px-6 py-4">{{ $item->brand }}</td>
+                            <td class="px-6 py-4">{{ $item->part_name }}</td>
 
-                                                <!--  FIXED ASSIGNED -->
-                                                <td class="px-6 py-4 text-gray-500">
-                                                    {{ optional(optional($item->activeAssignment)->user)->name ?? '-' }}
-                                                </td>
+                            <!-- ASSIGNED -->
+                            <td class="px-6 py-4 text-xs text-gray-600">
+                                @forelse($item->activeAssignments as $assign)
+                                    <div>
+                                        @if($assign->department)
+                                            {{ $assign->department->name }}
+                                        @endif
 
-                                                <!-- STATUS -->
-                                            <td class="px-6 py-4">
+                                        @if($assign->user)
+                                            - {{ $assign->user->name }}
+                                        @endif
 
-                                                @php
-                        $activeUser = optional(optional($item->activeAssignment)->user);
-                                                @endphp
+                                        ({{ $assign->quantity }})
+                                        ({{ $assign->quantity }})
+                                    </div>
+                                @empty
+                                    -
+                                @endforelse
+                            </td>
 
-                                                <form method="POST" action="{{ route('assets.update', $item->id) }}" class="flex items-center gap-2">
-                                                    @csrf
-                                                    @method('PUT')
+                            <!-- STATUS -->
+                        <td class="px-6 py-4 text-xs">
 
-                                                    @if(!$activeUser)
-                                                        <!--  ASSIGN MODE -->
-                                                        <select name="assigned_to" class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                            <option value="">Select User</option>
-                                                            @foreach($users as $user)
-                                                                <option value="{{ $user->id }}">
-                                                                    {{ $user->name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
+                            @if($item->computed_status === 'out')
+                                <span class="px-2 py-1 text-red-700 bg-red-100 rounded-lg">
+                                    Out of Stock
+                                </span>
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-                                                            Assign
-                                                        </button>
+                            @elseif($item->computed_status === 'partial')
+                                <span class="px-2 py-1 text-yellow-700 bg-yellow-100 rounded-lg">
+                                    {{ $item->totalAssigned() }} Assigned /
+                                    {{ $item->availableQuantity() }} Available
+                                </span>
 
-                                                    @else
-                                                        <!--  RETURN MODE -->
-                                                        <span class="text-xs text-gray-500">
-                                                            {{ $activeUser->name }}
-                                                        </span>
+                            @else
+                                <span class="px-2 py-1 text-green-700 bg-green-100 rounded-lg">
+                                    {{ $item->availableQuantity() }} Available
+                                </span>
 
-                                                        <input type="hidden" name="assigned_to" value="">
+                            @endif
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
-                                                            Return
-                                                        </button>
-                                                    @endif
+                        </td>
 
-                                                </form>
+                            <!-- ACTIONS -->
+                            <td class="px-6 py-4 space-y-2">
 
-                                            </td>
+                                @if($item->availableQuantity() > 0)
 
-                                                <!-- ACTIONS -->
-                                                <td class="px-6 py-4">
+                                    <form method="POST" action="{{ route('assets.assign', $item->id) }}">
+                                        @csrf
 
-                                                    <form method="POST" action="{{ route('assets.update', $item->id) }}"
-                                                        class="flex items-center gap-2">
-                                                        @csrf
-                                                        @method('PUT')
+                                        <!-- Department (REQUIRED) -->
+                                        <select name="department_id" required>
+                                            <option value="">Select Department</option>
+                                            @foreach($departments as $dept)
+                                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                                            @endforeach
+                                        </select>
 
-                                                        <!-- FIXED SELECT -->
-                                                        <select name="assigned_to"
-                                                            class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                            <option value="">Assign</option>
-                                                            @foreach($users as $user)
-                                                                <option value="{{ $user->id }}"
-                                                                    {{ optional(optional($item->activeAssignment)->user)->id == $user->id ? 'selected' : '' }}>
-                                                                    {{ $user->name }}
-                                                                </option>
-                                                            @endforeach
-                                                        </select>
+                                        <!-- User (OPTIONAL) -->
+                                        <select name="user_id">
+                                            <option value="">Optional User</option>
+                                            @foreach($users as $user)
+                                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                            @endforeach
+                                        </select>
 
-                                                        <!-- STATUS -->
-                                          {{--             <select name="status"
-                                                            class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                            <option value="available" {{ $item->status == 'available' ? 'selected' : '' }}>
-                                                                Available</option>
-                                                            <option value="assigned" {{ $item->status == 'assigned' ? 'selected' : '' }}>
-                                                                Assigned</option>
-                                                            <option value="maintenance" {{ $item->status == 'maintenance' ? 'selected' : '' }}>
-                                                                Maintenance</option>
-                                                        </select> --}}
+                                        <!-- Quantity -->
+                                        <input type="number" name="quantity" min="1" max="{{ $item->availableQuantity() }}"
+                                            placeholder="Qty max {{ $item->availableQuantity() }}" required>
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                                                            Save
-                                                        </button>
-                                                    </form>
+                                        <button>Assign</button>
+                                    </form>
 
-                                                </td>
+                                @else
+                                    <div class="text-xs text-gray-400">
+                                        No stock
+                                    </div>
+                                @endif
 
-                                            </tr>
+                                <!-- RETURNS -->
+                                @foreach($item->activeAssignments as $assign)
+                                    <form method="POST" action="{{ route('assets.return', $assign->id) }}">
+                                        @csrf
+                                        <button
+                                            class="px-2 py-1 text-xs text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
+                                            Return {{ $assign->quantity }}
+                                        </button>
+                                    </form>
+                                @endforeach
+
+                            </td>
+
+                        </tr>
                     @endforeach
 
                 </tbody>
@@ -157,48 +160,22 @@
         <!-- ACTIVITY LOG -->
         <div class="p-6 bg-white border shadow-lg rounded-2xl">
 
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-gray-700">Activity Log</h3>
-                <span class="text-xs text-gray-400">Latest actions</span>
-            </div>
+            <h3 class="mb-4 font-semibold text-gray-700">Activity Log</h3>
 
-            <div class="space-y-3 text-sm">
-
-                @forelse($logs as $log)
-                    <div class="flex items-center justify-between p-3 transition rounded-lg bg-slate-50 hover:bg-slate-100">
-
-                        <div class="flex items-center gap-2">
-
-                            <span class="px-2 py-1 text-xs font-medium rounded-full
-                                {{ $log->action == 'created' ? 'bg-green-100 text-green-700' : '' }}
-                                {{ $log->action == 'updated' ? 'bg-blue-100 text-blue-700' : '' }}
-                                {{ $log->action == 'deleted' ? 'bg-red-100 text-red-700' : '' }}">
-                                {{ ucfirst($log->action) }}
-                            </span>
-
-                            <span class="text-gray-700">
-                                {{ optional($log->item)->part_name ?? 'Asset' }}
-                            </span>
-
-                            <span class="text-gray-500">
-                                by {{ optional($log->user)->name ?? 'System' }}
-                            </span>
-
-                        </div>
-
-                        <span class="text-xs text-gray-400">
-                            {{ $log->created_at?->diffForHumans() }}
-                        </span>
-
-                    </div>
-
-                @empty
-                    <div class="py-6 text-center text-gray-400">
-                        No activity yet
-                    </div>
-                @endforelse
-
-            </div>
+            @forelse($logs as $log)
+                <div class="flex justify-between p-3 mb-2 text-sm rounded-lg bg-slate-50">
+                    <span>
+                        {{ ucfirst($log->action) }} -
+                        {{ optional($log->item)->part_name ?? 'Asset' }}
+                        by {{ optional($log->user)->name ?? 'System' }}
+                    </span>
+                    <span class="text-xs text-gray-400">
+                        {{ $log->created_at?->diffForHumans() }}
+                    </span>
+                </div>
+            @empty
+                <div class="text-gray-400">No activity</div>
+            @endforelse
 
         </div>
 

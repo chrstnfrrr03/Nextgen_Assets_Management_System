@@ -18,19 +18,16 @@
                 <p class="text-sm text-gray-500">Manage and track all company assets</p>
             </div>
 
-            <!-- RIGHT ACTIONS -->
             <div class="flex items-center gap-2">
-
                 <a href="<?php echo e(route('assets.create')); ?>"
-                   class="px-5 py-2 text-sm font-medium text-white bg-green-600 shadow rounded-xl hover:bg-green-700">
+                    class="px-5 py-2 text-sm font-medium text-white bg-green-600 shadow rounded-xl hover:bg-green-700">
                     + Add Asset
                 </a>
 
                 <a href="<?php echo e(route('assets.export')); ?>"
-                   class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
+                    class="px-5 py-2 text-sm font-medium text-white bg-blue-600 shadow rounded-xl hover:bg-blue-700">
                     Export CSV
                 </a>
-
             </div>
         </div>
 
@@ -56,97 +53,110 @@
 
                 <tbody class="divide-y">
 
-                    
                     <?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                            <tr class="transition hover:bg-slate-50">
+                        <tr class="hover:bg-slate-50">
 
-                                                <td class="px-6 py-4 font-medium"><?php echo e($item->part_no); ?></td>
-                                                <td class="px-6 py-4"><?php echo e($item->brand); ?></td>
-                                                <td class="px-6 py-4"><?php echo e($item->part_name); ?></td>
+                            <td class="px-6 py-4 font-medium"><?php echo e($item->part_no); ?></td>
+                            <td class="px-6 py-4"><?php echo e($item->brand); ?></td>
+                            <td class="px-6 py-4"><?php echo e($item->part_name); ?></td>
 
-                                                <!--  FIXED ASSIGNED -->
-                                                <td class="px-6 py-4 text-gray-500">
-                                                    <?php echo e(optional(optional($item->activeAssignment)->user)->name ?? '-'); ?>
+                            <!-- ASSIGNED -->
+                            <td class="px-6 py-4 text-xs text-gray-600">
+                                <?php $__empty_1 = true; $__currentLoopData = $item->activeAssignments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assign): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                    <div>
+                                        <?php if($assign->department): ?>
+                                            <?php echo e($assign->department->name); ?>
 
-                                                </td>
+                                        <?php endif; ?>
 
-                                                <!-- STATUS -->
-                                            <td class="px-6 py-4">
+                                        <?php if($assign->user): ?>
+                                            - <?php echo e($assign->user->name); ?>
 
-                                                <?php
-                        $activeUser = optional(optional($item->activeAssignment)->user);
-                                                ?>
+                                        <?php endif; ?>
 
-                                                <form method="POST" action="<?php echo e(route('assets.update', $item->id)); ?>" class="flex items-center gap-2">
-                                                    <?php echo csrf_field(); ?>
-                                                    <?php echo method_field('PUT'); ?>
+                                        (<?php echo e($assign->quantity); ?>)
+                                        (<?php echo e($assign->quantity); ?>)
+                                    </div>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
 
-                                                    <?php if(!$activeUser): ?>
-                                                        <!--  ASSIGN MODE -->
-                                                        <select name="assigned_to" class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                            <option value="">Select User</option>
-                                                            <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                                <option value="<?php echo e($user->id); ?>">
-                                                                    <?php echo e($user->name); ?>
+                            <!-- STATUS -->
+                        <td class="px-6 py-4 text-xs">
 
-                                                                </option>
-                                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                                                        </select>
+                            <?php if($item->computed_status === 'out'): ?>
+                                <span class="px-2 py-1 text-red-700 bg-red-100 rounded-lg">
+                                    Out of Stock
+                                </span>
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-                                                            Assign
-                                                        </button>
+                            <?php elseif($item->computed_status === 'partial'): ?>
+                                <span class="px-2 py-1 text-yellow-700 bg-yellow-100 rounded-lg">
+                                    <?php echo e($item->totalAssigned()); ?> Assigned /
+                                    <?php echo e($item->availableQuantity()); ?> Available
+                                </span>
 
-                                                    <?php else: ?>
-                                                        <!--  RETURN MODE -->
-                                                        <span class="text-xs text-gray-500">
-                                                            <?php echo e($activeUser->name); ?>
+                            <?php else: ?>
+                                <span class="px-2 py-1 text-green-700 bg-green-100 rounded-lg">
+                                    <?php echo e($item->availableQuantity()); ?> Available
+                                </span>
 
-                                                        </span>
+                            <?php endif; ?>
 
-                                                        <input type="hidden" name="assigned_to" value="">
+                        </td>
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
-                                                            Return
-                                                        </button>
-                                                    <?php endif; ?>
+                            <!-- ACTIONS -->
+                            <td class="px-6 py-4 space-y-2">
 
-                                                </form>
+                                <?php if($item->availableQuantity() > 0): ?>
 
-                                            </td>
+                                    <form method="POST" action="<?php echo e(route('assets.assign', $item->id)); ?>">
+                                        <?php echo csrf_field(); ?>
 
-                                                <!-- ACTIONS -->
-                                                <td class="px-6 py-4">
+                                        <!-- Department (REQUIRED) -->
+                                        <select name="department_id" required>
+                                            <option value="">Select Department</option>
+                                            <?php $__currentLoopData = $departments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dept): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <option value="<?php echo e($dept->id); ?>"><?php echo e($dept->name); ?></option>
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </select>
 
-                                                    <form method="POST" action="<?php echo e(route('assets.update', $item->id)); ?>"
-                                                        class="flex items-center gap-2">
-                                                        <?php echo csrf_field(); ?>
-                                                        <?php echo method_field('PUT'); ?>
+                                        <!-- User (OPTIONAL) -->
+                                        <select name="user_id">
+                                            <option value="">Optional User</option>
+                                            <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <option value="<?php echo e($user->id); ?>"><?php echo e($user->name); ?></option>
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </select>
 
-                                                        <!-- FIXED SELECT -->
-                                                        <select name="assigned_to"
-                                                            class="px-2 py-1 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500">
-                                                            <option value="">Assign</option>
-                                                            <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                                <option value="<?php echo e($user->id); ?>"
-                                                                    <?php echo e(optional(optional($item->activeAssignment)->user)->id == $user->id ? 'selected' : ''); ?>>
-                                                                    <?php echo e($user->name); ?>
+                                        <!-- Quantity -->
+                                        <input type="number" name="quantity" min="1" max="<?php echo e($item->availableQuantity()); ?>"
+                                            placeholder="Qty max <?php echo e($item->availableQuantity()); ?>" required>
 
-                                                                </option>
-                                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                                                        </select>
+                                        <button>Assign</button>
+                                    </form>
 
-                                                        <!-- STATUS -->
-                                          
+                                <?php else: ?>
+                                    <div class="text-xs text-gray-400">
+                                        No stock
+                                    </div>
+                                <?php endif; ?>
 
-                                                        <button class="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                                                            Save
-                                                        </button>
-                                                    </form>
+                                <!-- RETURNS -->
+                                <?php $__currentLoopData = $item->activeAssignments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $assign): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <form method="POST" action="<?php echo e(route('assets.return', $assign->id)); ?>">
+                                        <?php echo csrf_field(); ?>
+                                        <button
+                                            class="px-2 py-1 text-xs text-white bg-yellow-500 rounded-lg hover:bg-yellow-600">
+                                            Return <?php echo e($assign->quantity); ?>
 
-                                                </td>
+                                        </button>
+                                    </form>
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
-                                            </tr>
+                            </td>
+
+                        </tr>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
                 </tbody>
@@ -163,54 +173,25 @@
         <!-- ACTIVITY LOG -->
         <div class="p-6 bg-white border shadow-lg rounded-2xl">
 
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-gray-700">Activity Log</h3>
-                <span class="text-xs text-gray-400">Latest actions</span>
-            </div>
+            <h3 class="mb-4 font-semibold text-gray-700">Activity Log</h3>
 
-            <div class="space-y-3 text-sm">
+            <?php $__empty_1 = true; $__currentLoopData = $logs; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $log): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                <div class="flex justify-between p-3 mb-2 text-sm rounded-lg bg-slate-50">
+                    <span>
+                        <?php echo e(ucfirst($log->action)); ?> -
+                        <?php echo e(optional($log->item)->part_name ?? 'Asset'); ?>
 
-                <?php $__empty_1 = true; $__currentLoopData = $logs; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $log): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                    <div class="flex items-center justify-between p-3 transition rounded-lg bg-slate-50 hover:bg-slate-100">
+                        by <?php echo e(optional($log->user)->name ?? 'System'); ?>
 
-                        <div class="flex items-center gap-2">
+                    </span>
+                    <span class="text-xs text-gray-400">
+                        <?php echo e($log->created_at?->diffForHumans()); ?>
 
-                            <span class="px-2 py-1 text-xs font-medium rounded-full
-                                <?php echo e($log->action == 'created' ? 'bg-green-100 text-green-700' : ''); ?>
-
-                                <?php echo e($log->action == 'updated' ? 'bg-blue-100 text-blue-700' : ''); ?>
-
-                                <?php echo e($log->action == 'deleted' ? 'bg-red-100 text-red-700' : ''); ?>">
-                                <?php echo e(ucfirst($log->action)); ?>
-
-                            </span>
-
-                            <span class="text-gray-700">
-                                <?php echo e(optional($log->item)->part_name ?? 'Asset'); ?>
-
-                            </span>
-
-                            <span class="text-gray-500">
-                                by <?php echo e(optional($log->user)->name ?? 'System'); ?>
-
-                            </span>
-
-                        </div>
-
-                        <span class="text-xs text-gray-400">
-                            <?php echo e($log->created_at?->diffForHumans()); ?>
-
-                        </span>
-
-                    </div>
-
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                    <div class="py-6 text-center text-gray-400">
-                        No activity yet
-                    </div>
-                <?php endif; ?>
-
-            </div>
+                    </span>
+                </div>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                <div class="text-gray-400">No activity</div>
+            <?php endif; ?>
 
         </div>
 

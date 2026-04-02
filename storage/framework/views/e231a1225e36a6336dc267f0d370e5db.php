@@ -63,6 +63,10 @@ try {
                     Categories
                 </a>
 
+                <a href="<?php echo e(route('departments')); ?>" class="block px-4 py-2 text-sm rounded hover:bg-gray-700">
+                    Departments
+                </a>
+
                 <a href="/users"
                     class="block px-4 py-2 rounded <?php echo e(str_contains($route, 'users') ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'); ?>">
                     Users

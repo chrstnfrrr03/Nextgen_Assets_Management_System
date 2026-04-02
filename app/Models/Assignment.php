@@ -11,6 +11,10 @@ class Assignment extends Model
         'user_id',
         'assigned_at',
         'returned_at',
+        'department_id',
+        'quantity',
+        'assigned_at',
+        'returned_at'
     ];
 
     protected $casts = [
@@ -24,6 +28,22 @@ class Assignment extends Model
      * =============================
      */
 
+    
+    /**
+     * =============================
+     * Department
+     * =============================
+     */
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+    
+    /**
+     * =============================
+     * Items
+     * =============================
+     */
     public function item()
     {
         return $this->belongsTo(Item::class);

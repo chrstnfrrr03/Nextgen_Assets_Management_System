@@ -7,6 +7,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\DepartmentController;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
@@ -66,5 +67,17 @@ Route::middleware(['auth'])->group(function () {
     // =============================
     Route::get('/settings', [SettingController::class, 'index'])->name('settings');
     Route::post('/settings', [SettingController::class, 'store'])->name('settings.store');
+
+    // ASSIGN (NEW SYSTEM)
+Route::post('/assets/{id}/assign', [ItemController::class, 'assign'])->name('assets.assign');
+
+// RETURN (FIX ERROR HERE)
+Route::post('/assignments/{id}/return', [ItemController::class, 'returnAsset'])->name('assets.return');
+
+// Department Routes
+Route::get('/departments', [DepartmentController::class, 'index']) ->name('departments');
+Route::post('/departments', [DepartmentController::class, 'store']) ->name('departments.store');
+Route::delete('/departments/{id}', [DepartmentController::class, 'destroy']) ->name('departments.destroy');
+
 
 });

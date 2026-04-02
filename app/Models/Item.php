@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Item extends Model
 {
+    /**
+     * =============================
+     * MASS ASSIGNABLE
+     * =============================
+     */
     protected $fillable = [
         'part_no',
         'brand',
@@ -22,6 +27,11 @@ class Item extends Model
         'quantity'
     ];
 
+    /**
+     * =============================
+     * DEFAULT VALUES
+     * =============================
+     */
     protected $attributes = [
         'status' => 'available',
         'quantity' => 1,
@@ -33,56 +43,83 @@ class Item extends Model
      * =============================
      */
 
+    // Category
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
+    // Supplier
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
     }
 
+    // LEGACY (keep for compatibility)
     public function user()
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    // MAIN RELATION (CRITICAL)
     public function assignments()
     {
         return $this->hasMany(Assignment::class);
     }
 
-    public function activeAssignment()
+    // ACTIVE ASSIGNMENTS ONLY
+    public function activeAssignments()
     {
-        return $this->hasOne(Assignment::class)
+        return $this->hasMany(Assignment::class)
             ->whereNull('returned_at');
-    }
-
-    public function assignedUser()
-    {
-        return $this->hasOneThrough(
-            User::class,
-            Assignment::class,
-            'item_id',
-            'id',
-            'id',
-            'user_id'
-        )->whereNull('assignments.returned_at');
     }
 
     /**
      * =============================
-     *  AUTO STATUS (ERD BASED)
+     * INVENTORY LOGIC (CORE SYSTEM)
      * =============================
      */
+
+    // TOTAL ASSIGNED (ACTIVE ONLY)
+    public function totalAssigned()
+    {
+        return (int) $this->activeAssignments()->sum('quantity');
+    }
+
+    // AVAILABLE STOCK
+    public function availableQuantity()
+    {
+        return max(0, (int) $this->quantity - $this->totalAssigned());
+    }
+
+    /**
+     * =============================
+     * STATUS (REAL SYSTEM LOGIC)
+     * =============================
+     */
+
     public function getComputedStatusAttribute()
     {
-        return $this->activeAssignment ? 'assigned' : 'available';
+        $assigned = $this->totalAssigned();
+        $available = $this->availableQuantity();
+
+        if ($available <= 0) {
+            return 'out_of_stock';
+        }
+
+        if ($assigned > 0) {
+            return 'partially_assigned';
+        }
+
+        return 'available';
     }
 
     public function getStatusLabelAttribute()
     {
-        return ucfirst($this->computed_status);
+        return match ($this->computed_status) {
+            'out_of_stock' => 'Out of Stock',
+            'partially_assigned' => 'Partially Assigned',
+            default => 'Available',
+        };
     }
 }

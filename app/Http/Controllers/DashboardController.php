@@ -39,7 +39,7 @@ class DashboardController extends Controller
         $totalCategories = Category::count();
 
         // =============================
-        // STATUS COUNTS (ACTIVE ASSIGNMENTS)
+        //STATUS COUNTS (ACTIVE ASSIGNMENTS)
         //(ERD BASED)
         // =============================
        $assignedAssets = Assignment::whereNUll('returned_at')->count();
