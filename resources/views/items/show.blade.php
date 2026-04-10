@@ -33,6 +33,7 @@
         <div class="p-6 bg-white shadow rounded-2xl">
             <h2 class="mb-4 text-xl font-semibold">Assignment History</h2>
             <div class="space-y-3 text-sm">
+                {{-- - 
                 @forelse($item->assignments as $assignment)
                     <div class="pb-2 border-b">
                         <p class="font-medium">{{ $assignment->user->name ?? '-' }}</p>
@@ -47,6 +48,19 @@
                 @empty
                     <p class="text-slate-500">No assignment history found.</p>
                 @endforelse
+                --}}
+                @foreach ($logs as $log)
+                 <p>{{  $log-> action }}</p>
+                 <p class=="text-slate-500" >
+                    {{  $log->user?->name ?? 'System' }} • {{ optional($log->created_at)->format('d M Y H:i') }} 
+                 </p>
+
+                 @if ($log->notes)
+                 <p class="mt-0.5 text-sm text-slate-400 italic">{{ $log->notes }}</p>
+                 
+                 @endif
+                
+                @endforeach
             </div>
         </div>
 

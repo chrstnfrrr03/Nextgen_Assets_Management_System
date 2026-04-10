@@ -3,18 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetLog;
+use App\Models\Assignment;
 use App\Models\Item;
-use App\Services\SystemNotificationService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
 
 class InventoryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
-        $query = Item::with(['category', 'supplier', 'department'])->latest();
+        $query = Item::with(['category', 'supplier', 'department'])
+            ->orderBy('name');
 
         if ($request->filled('search')) {
             $search = trim((string) $request->search);
@@ -22,7 +21,16 @@ class InventoryController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('asset_tag', 'like', "%{$search}%")
-                    ->orWhere('serial_number', 'like', "%{$search}%");
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('supplier', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('department', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -31,71 +39,64 @@ class InventoryController extends Controller
         return view('inventory.index', compact('items'));
     }
 
-    public function stockIn(Request $request, Item $item, SystemNotificationService $notificationService): RedirectResponse
+    public function stockOut(Request $request, Item $item)
     {
         $validated = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => 'required|integer|min:1',
         ]);
-
-        $item->increment('quantity', $validated['quantity']);
-
-        AssetLog::create([
-            'item_id' => $item->id,
-            'user_id' => Auth::id() ?? 1,
-            'action' => 'stock_in',
-        ]);
-
-        $notificationService->notifyAdmins(
-            'success',
-            'Stock increased',
-            $item->name . ' stock increased by ' . $validated['quantity'] . '.',
-            route('inventory.index'),
-            Item::class,
-            $item->id
-        );
-
-        return back()->with('success', 'Stock added successfully.');
-    }
-
-    public function stockOut(Request $request, Item $item, SystemNotificationService $notificationService): RedirectResponse
-    {
-        $validated = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1'],
-        ]);
-
-        if ($item->quantity < $validated['quantity']) {
-            return back()->with('error', 'Stock out cannot exceed current quantity.');
-        }
 
         $item->decrement('quantity', $validated['quantity']);
         $item->refresh();
 
-        AssetLog::create([
-            'item_id' => $item->id,
-            'user_id' => Auth::id() ?? 1,
-            'action' => 'stock_out',
-        ]);
-
-        $notificationService->notifyAdmins(
-            'warning',
-            'Stock reduced',
-            $item->name . ' stock reduced by ' . $validated['quantity'] . '. Current qty: ' . $item->quantity . '.',
-            route('inventory.index'),
-            Item::class,
-            $item->id
-        );
-
-        if ($item->quantity <= 3) {
-            $notificationService->notifyAdmins(
-                'critical',
-                'Low stock alert',
-                $item->name . ' is low in stock. Current qty: ' . $item->quantity . '.',
-                route('items.show', $item),
-                Item::class,
-                $item->id
-            );
+        if ($item->quantity <= 0) {
+            $item->update([
+                'status' => 'maintenance',
+                'quantity' => 0,
+            ]);
+            $item->refresh();
         }
 
-        return back()->with('success', 'Stock removed successfully.');
+        $authUser = Auth::user();
+
+        AssetLog::create([
+            'item_id' => $item->id,
+            'user_id' => $authUser?->id ?? 1,
+            'action' => 'stock_out',
+            'notes' => 'Stock decreased by ' . $validated['quantity'] . '. New qty: ' . $item->quantity,
+        ]);
+
+        return back()->with('success', 'Stock out recorded successfully.');
+    }
+
+    public function stockIn(Request $request, Item $item)
+    {
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $item->increment('quantity', $validated['quantity']);
+        $item->refresh();
+
+        if ($item->status === 'maintenance' && $item->quantity > 0) {
+            $hasActiveAssignment = Assignment::where('item_id', $item->id)
+                ->whereNull('returned_at')
+                ->exists();
+
+            if (! $hasActiveAssignment) {
+                $item->update(['status' => 'available']);
+                $item->refresh();
+            }
+        }
+
+        $authUser = Auth::user();
+
+        AssetLog::create([
+            'item_id' => $item->id,
+            'user_id' => $authUser?->id ?? 1,
+            'action' => 'stock_in',
+            'notes' => 'Stock increased by ' . $validated['quantity'] . '. New qty: ' . $item->quantity,
+        ]);
+
+        return back()->with('success', 'Stock in recorded successfully.');
     }
 }

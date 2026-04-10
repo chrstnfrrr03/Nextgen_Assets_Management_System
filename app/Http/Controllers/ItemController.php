@@ -7,8 +7,6 @@ use App\Models\Category;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\Supplier;
-use App\Services\SystemNotificationService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -17,8 +15,7 @@ class ItemController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Item::query()
-            ->with(['category', 'supplier', 'department', 'activeAssignment.user'])
+        $query = Item::with(['category', 'supplier', 'department', 'activeAssignment.user'])
             ->latest();
 
         if ($request->filled('search')) {
@@ -29,9 +26,18 @@ class ItemController extends Controller
                     ->orWhere('asset_tag', 'like', "%{$search}%")
                     ->orWhere('serial_number', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
-                    ->orWhereHas('category', fn ($sub) => $sub->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('supplier', fn ($sub) => $sub->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('department', fn ($sub) => $sub->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('category', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('supplier', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('department', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('activeAssignment.user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -48,10 +54,23 @@ class ItemController extends Controller
         }
 
         $items = $query->paginate(10)->withQueryString();
+
         $categories = Category::orderBy('name')->get();
+        $suppliers = Supplier::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
 
-        return view('items.index', compact('items', 'categories', 'departments'));
+        return view('items.index', [
+            'items' => $items,
+            'categories' => $categories,
+            'suppliers' => $suppliers,
+            'departments' => $departments,
+            'filters' => [
+                'search' => $request->search,
+                'status' => $request->status,
+                'category_id' => $request->category_id,
+                'department_id' => $request->department_id,
+            ],
+        ]);
     }
 
     public function create(): View
@@ -60,93 +79,55 @@ class ItemController extends Controller
         $suppliers = Supplier::orderBy('name')->get();
         $departments = Department::orderBy('name')->get();
 
-        return view('items.create', compact('categories', 'suppliers', 'departments'));
+        return view('items.create', [
+            'categories' => $categories,
+            'suppliers' => $suppliers,
+            'departments' => $departments,
+        ]);
     }
 
-    public function store(Request $request, SystemNotificationService $notificationService): RedirectResponse
+    public function store(Request $request)
     {
-        $request->validate([
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.name' => ['required', 'string', 'max:255'],
-            'rows.*.category_id' => ['required', 'exists:categories,id'],
-            'rows.*.supplier_id' => ['required', 'exists:suppliers,id'],
-            'rows.*.department_id' => ['required', 'exists:departments,id'],
-            'rows.*.asset_tag' => ['nullable', 'string', 'max:255'],
-            'rows.*.serial_number' => ['nullable', 'string', 'max:255'],
-            'rows.*.status' => ['required', 'in:available,assigned,maintenance,retired'],
-            'rows.*.location' => ['nullable', 'string', 'max:255'],
-            'rows.*.purchase_date' => ['nullable', 'date'],
+        $validated = $request->validate([
+            'rows.*.name' => 'required|string|max:255',
+            'rows.*.category_id' => 'required|exists:categories,id',
+            'rows.*.supplier_id' => 'required|exists:suppliers,id',
+            'rows.*.department_id' => 'required|exists:departments,id',
+            'rows.*.asset_tag' => ['nullable', 'string', 'max:255', 'distinct', 'unique:items,asset_tag'],
+            'rows.*.serial_number' => ['nullable', 'string', 'max:255', 'distinct', 'unique:items,serial_number'],
+            'rows.*.location' => 'nullable|string|max:255',
+            'rows.*.purchase_date' => 'nullable|date',
         ]);
 
-        $createdCount = 0;
+        $authUser = Auth::user();
 
-        foreach ($request->rows as $row) {
+        foreach ($validated['rows'] as $row) {
             $item = Item::create([
-                'name' => $row['name'],
-                'category_id' => $row['category_id'],
-                'supplier_id' => $row['supplier_id'],
-                'department_id' => $row['department_id'],
-                'asset_tag' => !empty($row['asset_tag']) ? $row['asset_tag'] : null,
-                'serial_number' => !empty($row['serial_number']) ? $row['serial_number'] : null,
+                ...$row,
                 'quantity' => 1,
-                'status' => $row['status'],
-                'location' => $row['location'] ?? null,
-                'purchase_date' => $row['purchase_date'] ?? null,
+                'status' => 'available',
             ]);
-
-            if (!$item->asset_tag) {
-                $item->update([
-                    'asset_tag' => 'NGA-' . str_pad((string) $item->id, 5, '0', STR_PAD_LEFT),
-                ]);
-            }
 
             AssetLog::create([
                 'item_id' => $item->id,
-                'user_id' => Auth::id() ?? 1,
+                'user_id' => $authUser?->id ?? 1,
                 'action' => 'created',
+                'notes' => $item->name . ' created with status ' . $item->status . ' by ' . ($authUser?->name ?? 'System'),
             ]);
-
-            $notificationService->notifyAdmins(
-                'success',
-                'Asset created',
-                $item->name . ' was added to the system.',
-                route('items.show', $item),
-                Item::class,
-                $item->id
-            );
-
-            if ($item->status === 'maintenance') {
-                $notificationService->notifyAdmins(
-                    'warning',
-                    'Asset in maintenance',
-                    $item->name . ' was created with maintenance status.',
-                    route('items.show', $item),
-                    Item::class,
-                    $item->id
-                );
-            }
-
-            $createdCount++;
         }
 
-        return redirect()
-            ->route('items.index')
-            ->with('success', "{$createdCount} asset(s) created successfully.");
+        return redirect()->route('items.index')->with('success', 'Assets created successfully.');
     }
 
     public function show(Item $item): View
     {
-        $item->load([
-            'category',
-            'supplier',
-            'department',
-            'assignments.user',
-            'assignments.department',
-            'assetLogs.user',
-            'activeAssignment.user',
-        ]);
+        $item->load(['category', 'supplier', 'department', 'activeAssignment.user', 'activeAssignment.assignedDepartment']);
+        $logs = AssetLog::with('user')
+            ->where('item_id', $item->id)
+            ->latest()
+            ->get();
 
-        return view('items.show', compact('item'));
+        return view('items.show', compact('item', 'logs'));
     }
 
     public function edit(Item $item): View
@@ -158,77 +139,46 @@ class ItemController extends Controller
         return view('items.edit', compact('item', 'categories', 'suppliers', 'departments'));
     }
 
-    public function update(Request $request, Item $item, SystemNotificationService $notificationService): RedirectResponse
+    public function update(Request $request, Item $item)
     {
         $oldStatus = $item->status;
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'category_id' => ['required', 'exists:categories,id'],
-            'supplier_id' => ['required', 'exists:suppliers,id'],
-            'department_id' => ['required', 'exists:departments,id'],
-            'asset_tag' => ['nullable', 'string', 'max:255', 'unique:items,asset_tag,' . $item->id],
-            'serial_number' => ['nullable', 'string', 'max:255', 'unique:items,serial_number,' . $item->id],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'status' => ['required', 'in:available,assigned,maintenance,retired'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'purchase_date' => ['nullable', 'date'],
+            'name' => 'required|string|max:255',
+            'category_id' => 'required|exists:categories,id',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'department_id' => 'required|exists:departments,id',
+            'location' => 'nullable|string|max:255',
+            'purchase_date' => 'nullable|date',
         ]);
 
         $item->update($validated);
 
+        $authUser = Auth::user();
+
         AssetLog::create([
             'item_id' => $item->id,
-            'user_id' => Auth::id() ?? 1,
+            'user_id' => $authUser?->id ?? 1,
             'action' => 'updated',
+            'notes' => 'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . ($authUser?->name ?? 'System'),
         ]);
 
-        $notificationService->notifyAdmins(
-            'info',
-            'Asset updated',
-            $item->name . ' details were updated.',
-            route('items.show', $item),
-            Item::class,
-            $item->id
-        );
-
-        if ($oldStatus !== $item->status && $item->status === 'maintenance') {
-            $notificationService->notifyAdmins(
-                'warning',
-                'Asset moved to maintenance',
-                $item->name . ' is now under maintenance.',
-                route('items.show', $item),
-                Item::class,
-                $item->id
-            );
-        }
-
-        return redirect()
-            ->route('items.index')
-            ->with('success', 'Asset updated successfully.');
+        return redirect()->route('items.index')->with('success', 'Asset updated.');
     }
 
-    public function destroy(Item $item, SystemNotificationService $notificationService): RedirectResponse
+    public function destroy(Item $item)
     {
+        $authUser = Auth::user();
+
         AssetLog::create([
             'item_id' => $item->id,
-            'user_id' => Auth::id() ?? 1,
+            'user_id' => $authUser?->id ?? 1,
             'action' => 'deleted',
+            'notes' => $item->name . ' permanently deleted by ' . ($authUser?->name ?? 'System'),
         ]);
-
-        $notificationService->notifyAdmins(
-            'warning',
-            'Asset deleted',
-            $item->name . ' was removed from the system.',
-            route('items.index'),
-            Item::class,
-            $item->id
-        );
 
         $item->delete();
 
-        return redirect()
-            ->route('items.index')
-            ->with('success', 'Asset deleted successfully.');
+        return redirect()->route('items.index')->with('success', 'Asset deleted.');
     }
 }

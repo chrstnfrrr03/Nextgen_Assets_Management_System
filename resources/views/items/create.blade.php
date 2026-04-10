@@ -81,49 +81,49 @@
             const row = document.createElement('div');
             row.className = 'asset-row border rounded-xl p-4 mt-4';
             row.innerHTML = `
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-semibold text-slate-700">Asset Entry ${assetRowIndex + 1}</h3>
-                    <button type="button" onclick="this.closest('.asset-row').remove()" class="px-3 py-1 text-sm text-white bg-red-500 rounded">
-                        Remove
-                    </button>
-                </div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-slate-700">Asset Entry ${assetRowIndex + 1}</h3>
+                        <button type="button" onclick="this.closest('.asset-row').remove()" class="px-3 py-1 text-sm text-white bg-red-500 rounded">
+                            Remove
+                        </button>
+                    </div>
 
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <input type="text" name="rows[${assetRowIndex}][name]" placeholder="Asset Name" class="px-4 py-2 border rounded-lg" required>
-                    <input type="text" name="rows[${assetRowIndex}][asset_tag]" placeholder="Asset Tag (leave blank for auto)" class="px-4 py-2 border rounded-lg">
-                    <input type="text" name="rows[${assetRowIndex}][serial_number]" placeholder="Serial Number" class="px-4 py-2 border rounded-lg">
-                    <input type="text" name="rows[${assetRowIndex}][location]" placeholder="Location" class="px-4 py-2 border rounded-lg">
-                    <input type="date" name="rows[${assetRowIndex}][purchase_date]" class="px-4 py-2 border rounded-lg">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <input type="text" name="rows[${assetRowIndex}][name]" placeholder="Asset Name" class="px-4 py-2 border rounded-lg" required>
+                        <input type="text" name="rows[${assetRowIndex}][asset_tag]" placeholder="Asset Tag (leave blank for auto)" class="px-4 py-2 border rounded-lg">
+                        <input type="text" name="rows[${assetRowIndex}][serial_number]" placeholder="Serial Number" class="px-4 py-2 border rounded-lg">
+                        <input type="text" name="rows[${assetRowIndex}][location]" placeholder="Location" class="px-4 py-2 border rounded-lg">
+                        <input type="date" name="rows[${assetRowIndex}][purchase_date]" class="px-4 py-2 border rounded-lg">
 
-                    <select name="rows[${assetRowIndex}][category_id]" class="px-4 py-2 border rounded-lg" required>
-                        <option value="">Select Category</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                        @endforeach
-                    </select>
+                        <select name="rows[${assetRowIndex}][category_id]" class="px-4 py-2 border rounded-lg" required>
+                            <option value="">Select Category</option>
+                            @foreach($categories as $category)
+                                <option value="{{ $category->id }}">{{ $category->name }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="rows[${assetRowIndex}][supplier_id]" class="px-4 py-2 border rounded-lg" required>
-                        <option value="">Select Supplier</option>
-                        @foreach($suppliers as $supplier)
-                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                        @endforeach
-                    </select>
+                        <select name="rows[${assetRowIndex}][supplier_id]" class="px-4 py-2 border rounded-lg" required>
+                            <option value="">Select Supplier</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="rows[${assetRowIndex}][department_id]" class="px-4 py-2 border rounded-lg" required>
-                        <option value="">Select Department</option>
-                        @foreach($departments as $department)
-                            <option value="{{ $department->id }}">{{ $department->name }}</option>
-                        @endforeach
-                    </select>
+                        <select name="rows[${assetRowIndex}][department_id]" class="px-4 py-2 border rounded-lg" required>
+                            <option value="">Select Department</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}">{{ $department->name }}</option>
+                            @endforeach
+                        </select>
 
-                    <select name="rows[${assetRowIndex}][status]" class="px-4 py-2 border rounded-lg" required>
-                        <option value="available">Available</option>
-                        <option value="assigned">Assigned</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="retired">Retired</option>
-                    </select>
-                </div>
-            `;
+                        <select name="rows[${assetRowIndex}][status]" class="px-4 py-2 border rounded-lg" required>
+                            <option value="available">Available</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="retired">Retired</option>
+                        </select>
+                    </div>
+                `;
 
             container.appendChild(row);
             assetRowIndex++;

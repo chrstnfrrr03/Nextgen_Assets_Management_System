@@ -38,7 +38,7 @@ class DashboardController extends Controller
             'retiredAssets' => Item::where('status', 'retired')->count(),
             'lowStockAssets' => Item::where('quantity', '<=', 3)->count(),
 
-            'recentAssignments' => Assignment::with(['item', 'user', 'department'])
+            'recentAssignments' => Assignment::with(['item', 'user', 'assignedDepartment'])
                 ->latest('assigned_at')
                 ->take(8)
                 ->get(),

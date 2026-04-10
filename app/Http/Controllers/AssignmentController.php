@@ -17,7 +17,7 @@ class AssignmentController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Assignment::with(['item', 'user', 'department'])->latest('assigned_at');
+        $query = Assignment::with(['item', 'user', 'assignedDepartment'])->latest('assigned_at');
 
         if ($request->filled('status')) {
             if ($request->status === 'active') {
@@ -49,72 +49,83 @@ class AssignmentController extends Controller
     }
 
     public function store(Request $request, SystemNotificationService $notificationService): RedirectResponse
-    {
-        $request->validate([
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.item_id' => ['required', 'exists:items,id'],
-            'rows.*.user_id' => ['required', 'exists:users,id'],
-            'rows.*.department_id' => ['required', 'exists:departments,id'],
-            'rows.*.assigned_at' => ['required', 'date'],
-        ]);
+{
+    $request->validate([
+        'rows' => ['required', 'array', 'min:1'],
+        'rows.*.item_id' => ['required', 'exists:items,id'],
+        'rows.*.user_id' => ['required', 'exists:users,id'],
+        'rows.*.department_id' => ['required', 'exists:departments,id'], // ✅ FIXED
+        'rows.*.assigned_at' => ['required', 'date'],
+    ]);
 
-        $createdCount = 0;
+    $createdCount = 0;
+    $authUser = Auth::user();
 
-        foreach ($request->rows as $row) {
-            $alreadyAssigned = Assignment::where('item_id', $row['item_id'])
-                ->whereNull('returned_at')
-                ->exists();
+    foreach ($request->rows as $row) {
 
-            if ($alreadyAssigned) {
-                continue;
-            }
+        // Prevent double assignment
+        $alreadyAssigned = Assignment::where('item_id', $row['item_id'])
+            ->whereNull('returned_at')
+            ->exists();
 
-            $assignment = Assignment::create([
-                'item_id' => $row['item_id'],
-                'user_id' => $row['user_id'],
-                'department_id' => $row['department_id'],
-                'assigned_at' => $row['assigned_at'],
-            ]);
-
-            $assignment->load(['item', 'user', 'department']);
-
-            $assignment->item->update([
-                'status' => 'assigned',
-                'department_id' => $row['department_id'],
-            ]);
-
-            AssetLog::create([
-                'item_id' => $row['item_id'],
-                'user_id' => Auth::id() ?? 1,
-                'action' => 'assigned',
-            ]);
-
-            $notificationService->notifyUser(
-                $assignment->user_id,
-                'info',
-                'Asset assigned to you',
-                ($assignment->item->name ?? 'Asset') . ' has been assigned to you.',
-                route('items.show', $assignment->item_id),
-                Assignment::class,
-                $assignment->id
-            );
-
-            $notificationService->notifyAdmins(
-                'info',
-                'New assignment created',
-                ($assignment->item->name ?? 'Asset') . ' assigned to ' . ($assignment->user->name ?? 'User'),
-                route('assignments.index'),
-                Assignment::class,
-                $assignment->id
-            );
-
-            $createdCount++;
+        if ($alreadyAssigned) {
+            continue;
         }
 
-        return redirect()
-            ->route('assignments.index')
-            ->with('success', "{$createdCount} assignment(s) processed successfully.");
+        //  CREATE ASSIGNMENT
+        $assignment = Assignment::create([
+            'item_id' => $row['item_id'],
+            'user_id' => $row['user_id'],
+            'department_id' => $row['department_id'], // FIXED
+            'assigned_at' => $row['assigned_at'],
+        ]);
+
+        $assignment->load(['item', 'user', 'assignedDepartment']);
+
+        //  UPDATE ITEM STATUS + DEPARTMENT
+        $assignment->item->update([
+            'status' => 'assigned',
+            'department_id' => $row['department_id'],
+        ]);
+
+        //  LOG ACTIVITY
+        AssetLog::create([
+            'item_id' => $row['item_id'],
+            'user_id' => $authUser?->id ?? 1,
+            'action' => 'assigned',
+            'notes' => ($assignment->item->name ?? 'Asset') . 
+                ' assigned to ' . ($assignment->user->name ?? 'User') . 
+                ' in ' . ($assignment->assignedDepartment->name ?? 'Department'),
+        ]);
+
+        //  NOTIFY USER
+        $notificationService->notifyUser(
+            $assignment->user_id,
+            'info',
+            'Asset assigned to you',
+            ($assignment->item->name ?? 'Asset') . ' has been assigned to you.',
+            route('items.show', $assignment->item_id),
+            Assignment::class,
+            $assignment->id
+        );
+
+        //  NOTIFY ADMINS
+        $notificationService->notifyAdmins(
+            'info',
+            'New assignment created',
+            ($assignment->item->name ?? 'Asset') . ' assigned to ' . ($assignment->user->name ?? 'User'),
+            route('assignments.index'),
+            Assignment::class,
+            $assignment->id
+        );
+
+        $createdCount++;
     }
+
+    return redirect()
+        ->route('assignments.index')
+        ->with('success', "{$createdCount} assignment(s) processed successfully.");
+}
 
     public function return(Request $request, Assignment $assignment, SystemNotificationService $notificationService): RedirectResponse
     {
@@ -122,7 +133,7 @@ class AssignmentController extends Controller
             return back()->with('error', 'This assignment has already been returned.');
         }
 
-        $assignment->load(['item', 'user']);
+        $assignment->load(['item', 'user', 'assignedDepartment']);
 
         $assignment->update([
             'returned_at' => now(),
@@ -137,10 +148,13 @@ class AssignmentController extends Controller
             $assignment->item->update(['status' => 'available']);
         }
 
+        $authUser = Auth::user();
+
         AssetLog::create([
             'item_id' => $assignment->item_id,
-            'user_id' => Auth::id() ?? 1,
+            'user_id' => $authUser?->id ?? 1,
             'action' => 'returned',
+            'notes' => ($assignment->item->name ?? 'Asset') . ' returned by ' . ($authUser?->name ?? 'System'),
         ]);
 
         $notificationService->notifyUser(
