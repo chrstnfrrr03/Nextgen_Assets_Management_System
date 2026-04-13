@@ -10,33 +10,24 @@ html {
     scroll-behavior: smooth;
 }
 
-/* PAGE */
 body {
     @apply bg-slate-100 text-slate-800;
 }
 
-/* PREMIUM CARD SYSTEM */
 .card {
-    @apply p-6 bg-white border shadow-sm border-slate-200 rounded-2xl;
+    @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-sm;
 }
 
 .card-hover {
-    @apply transition duration-200 hover:shadow-xl hover:-translate-y-[3px];
+    @apply transition duration-200 hover:-translate-y-[2px] hover:shadow-lg;
 }
 
-/* GLASS EFFECT */
-.card-glass {
-    @apply border shadow-xl bg-white/70 backdrop-blur-xl border-white/40 rounded-2xl;
-}
-
-/* STAT CARDS */
 .stat-card {
-    @apply p-5 rounded-2xl text-white shadow-lg transition duration-200 hover:scale-[1.03];
+    @apply rounded-2xl p-5 text-white shadow-lg transition duration-200 hover:-translate-y-[2px] hover:shadow-xl;
 }
 
-/* BADGES */
 .badge {
-    @apply px-2 py-1 text-xs font-semibold rounded-lg;
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
 }
 
 .badge-success {
@@ -48,5 +39,5 @@ body {
 }
 
 .badge-danger {
-    @apply text-red-700 bg-red-100;
+    @apply bg-red-100 text-red-700;
 }

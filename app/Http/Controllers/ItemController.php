@@ -108,12 +108,11 @@ class ItemController extends Controller
                 'status' => 'available',
             ]);
 
-            AssetLog::create([
-                'item_id' => $item->id,
-                'user_id' => $authUser?->id ?? 1,
-                'action' => 'created',
-                'notes' => $item->name . ' created with status ' . $item->status . ' by ' . ($authUser?->name ?? 'System'),
-            ]);
+            AssetLog::log(
+                $item->id,
+                AssetLog::ACTION_CREATED,
+                $item->name . ' created with status ' . $item->status . ' by ' . ($authUser?->name ?? 'System')
+            );
         }
 
         return redirect()->route('items.index')->with('success', 'Assets created successfully.');
@@ -122,6 +121,7 @@ class ItemController extends Controller
     public function show(Item $item): View
     {
         $item->load(['category', 'supplier', 'department', 'activeAssignment.user', 'activeAssignment.assignedDepartment']);
+
         $logs = AssetLog::with('user')
             ->where('item_id', $item->id)
             ->latest()
@@ -156,12 +156,11 @@ class ItemController extends Controller
 
         $authUser = Auth::user();
 
-        AssetLog::create([
-            'item_id' => $item->id,
-            'user_id' => $authUser?->id ?? 1,
-            'action' => 'updated',
-            'notes' => 'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . ($authUser?->name ?? 'System'),
-        ]);
+        AssetLog::log(
+            $item->id,
+            AssetLog::ACTION_UPDATED,
+            'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . ($authUser?->name ?? 'System')
+        );
 
         return redirect()->route('items.index')->with('success', 'Asset updated.');
     }
@@ -170,12 +169,11 @@ class ItemController extends Controller
     {
         $authUser = Auth::user();
 
-        AssetLog::create([
-            'item_id' => $item->id,
-            'user_id' => $authUser?->id ?? 1,
-            'action' => 'deleted',
-            'notes' => $item->name . ' permanently deleted by ' . ($authUser?->name ?? 'System'),
-        ]);
+        AssetLog::log(
+            $item->id,
+            AssetLog::ACTION_DELETED,
+            $item->name . ' permanently deleted by ' . ($authUser?->name ?? 'System')
+        );
 
         $item->delete();
 
