@@ -20,6 +20,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'profile_photo',
     ];
 
     protected $hidden = [
@@ -75,6 +76,11 @@ class User extends Authenticatable
         return $this->role === 'staff';
     }
 
+    public function isSystemAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
     public function canManageUsers(): bool
     {
         return $this->isAdmin();
@@ -88,5 +94,12 @@ class User extends Authenticatable
     public function canMonitorOperations(): bool
     {
         return $this->isAdmin() || $this->isManager() || $this->isAssetOfficer();
+    }
+
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        return $this->profile_photo
+            ? asset('storage/' . $this->profile_photo)
+            : null;
     }
 }

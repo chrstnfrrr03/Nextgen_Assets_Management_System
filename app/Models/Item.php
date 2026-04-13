@@ -32,6 +32,8 @@ class Item extends Model
     public const STATUS_MAINTENANCE = 'maintenance';
     public const STATUS_RETIRED = 'retired';
 
+    /* ================= RELATIONSHIPS ================= */
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
@@ -64,6 +66,8 @@ class Item extends Model
         return $this->hasMany(AssetLog::class);
     }
 
+    /* ================= STATUS HELPERS ================= */
+
     public function isAvailable(): bool
     {
         return $this->status === self::STATUS_AVAILABLE;
@@ -89,10 +93,12 @@ class Item extends Model
         return $this->activeAssignment()->exists();
     }
 
-    public function shouldBeLowStock(int $threshold = 3): bool
+    public function isLowStock(int $threshold = 3): bool
     {
         return $this->quantity <= $threshold;
     }
+
+    /* ================= AUTOMATION ================= */
 
     public function syncAutomatedStatus(): void
     {
@@ -100,23 +106,23 @@ class Item extends Model
             return;
         }
 
+        if ($this->quantity < 0) {
+            $this->quantity = 0;
+        }
+
+        $newStatus = self::STATUS_AVAILABLE;
+
         if ($this->quantity <= 0) {
-            $this->update([
-                'quantity' => 0,
-                'status' => self::STATUS_MAINTENANCE,
-            ]);
-            return;
+            $newStatus = self::STATUS_MAINTENANCE;
+        } elseif ($this->hasActiveAssignment()) {
+            $newStatus = self::STATUS_ASSIGNED;
         }
 
-        if ($this->hasActiveAssignment()) {
+        if ($this->status !== $newStatus) {
             $this->update([
-                'status' => self::STATUS_ASSIGNED,
+                'quantity' => max(0, $this->quantity),
+                'status' => $newStatus,
             ]);
-            return;
         }
-
-        $this->update([
-            'status' => self::STATUS_AVAILABLE,
-        ]);
     }
 }

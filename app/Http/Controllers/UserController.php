@@ -14,7 +14,11 @@ class UserController extends Controller
 {
     protected function ensureAdmin(): void
     {
-        abort_unless(Auth::check() && Auth::user()->role === 'admin', 403, 'Only administrators can manage users.');
+        abort_unless(
+            Auth::check() && Auth::user()->role === 'admin',
+            403,
+            'Only administrators can manage users.'
+        );
     }
 
     public function index(Request $request): View
@@ -73,9 +77,7 @@ class UserController extends Controller
 
         $user->load([
             'assignments.item',
-            'assignments.department',
             'activeAssignments.item',
-            'activeAssignments.department',
             'assetLogs.item',
         ]);
 
@@ -106,7 +108,7 @@ class UserController extends Controller
             'password' => ['nullable', 'confirmed', Password::min(6)],
         ]);
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -146,5 +148,41 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    public function impersonate(User $user): RedirectResponse
+    {
+        $this->ensureAdmin();
+
+        if ((int) $user->id === (int) Auth::id()) {
+            return back()->with('error', 'You cannot impersonate yourself.');
+        }
+
+        session([
+            'impersonator_id' => Auth::id(),
+        ]);
+
+        Auth::login($user);
+
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'You are now logged in as ' . $user->name . '.');
+    }
+
+    public function stopImpersonation(): RedirectResponse
+    {
+        if (! session()->has('impersonator_id')) {
+            return redirect()->route('dashboard');
+        }
+
+        $impersonatorId = (int) session('impersonator_id');
+
+        session()->forget('impersonator_id');
+
+        Auth::loginUsingId($impersonatorId);
+
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'Returned to administrator account.');
     }
 }

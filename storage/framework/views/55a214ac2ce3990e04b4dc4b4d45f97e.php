@@ -42,7 +42,7 @@
                         <tr class="border-b">
                             <td class="px-4 py-3 font-medium"><?php echo e($assignment->item?->name ?? '-'); ?></td>
                             <td class="px-4 py-3"><?php echo e($assignment->user?->name ?? '-'); ?></td>
-                            <td class="px-4 py-3"><?php echo e($assignment->department?->name ?? '-'); ?></td>
+                            <td class="px-4 py-3"><?php echo e($assignment ->assignedDepartment?->name ?? '-'); ?></td>
                             <td class="px-4 py-3"><?php echo e($assignment->assigned_at?->format('d M Y H:i')); ?></td>
                             <td class="px-4 py-3"><?php echo e($assignment->returned_at?->format('d M Y H:i') ?? '-'); ?></td>
                             <td class="px-4 py-3">

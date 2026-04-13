@@ -19,9 +19,7 @@ class NotificationController extends Controller
         if ($request->filled('status')) {
             if ($request->status === 'unread') {
                 $baseQuery->whereNull('read_at');
-            }
-
-            if ($request->status === 'read') {
+            } elseif ($request->status === 'read') {
                 $baseQuery->whereNotNull('read_at');
             }
         }
@@ -73,7 +71,7 @@ class NotificationController extends Controller
 
     public function open(SystemNotification $notification): RedirectResponse
     {
-        abort_unless($notification->user_id === Auth::id(), 403);
+        abort_unless((int) $notification->user_id === (int) Auth::id(), 403);
 
         if (is_null($notification->read_at)) {
             $notification->update([
@@ -86,7 +84,7 @@ class NotificationController extends Controller
 
     public function markRead(SystemNotification $notification): RedirectResponse
     {
-        abort_unless($notification->user_id === Auth::id(), 403);
+        abort_unless((int) $notification->user_id === (int) Auth::id(), 403);
 
         if (is_null($notification->read_at)) {
             $notification->update([

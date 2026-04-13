@@ -42,7 +42,7 @@
                         <tr class="border-b">
                             <td class="px-4 py-3 font-medium">{{ $assignment->item?->name ?? '-' }}</td>
                             <td class="px-4 py-3">{{ $assignment->user?->name ?? '-' }}</td>
-                            <td class="px-4 py-3">{{ $assignment->department?->name ?? '-' }}</td>
+                            <td class="px-4 py-3">{{ $assignment ->assignedDepartment?->name ?? '-' }}</td>
                             <td class="px-4 py-3">{{ $assignment->assigned_at?->format('d M Y H:i') }}</td>
                             <td class="px-4 py-3">{{ $assignment->returned_at?->format('d M Y H:i') ?? '-' }}</td>
                             <td class="px-4 py-3">

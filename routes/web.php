@@ -109,4 +109,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
         Route::get('/departments/{department}', [DepartmentController::class, 'show'])->name('departments.show');
     });
+
+        Route::post('/users/{user}/impersonate', [UserController::class, 'impersonate'])
+        ->name('users.impersonate');
+
+        Route::post('/impersonation/stop', [UserController::class, 'stopImpersonation'])
+        ->name('impersonation.stop');
 });
