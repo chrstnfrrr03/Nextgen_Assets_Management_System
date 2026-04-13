@@ -1,31 +1,97 @@
 # NextGen Asset Management System
 
-A modern Laravel-based asset management system for tracking, assigning, and managing company assets.
+A Laravel-based asset management system for tracking, assigning, returning, and monitoring organizational assets in one place.
+
+It is built for internal company use with support for asset records, assignments, inventory movement, departments, suppliers, user roles, notifications, and dashboard reporting.
 
 ---
 
-##  Features
+## Features
 
-* Asset management (CRUD)
-* Assign assets to users
-* Inventory tracking (Stock In / Out)
-* Departments & Suppliers
-* User management with roles
-* Activity logs
-* Dashboard analytics
-* Search & filtering
-* Clean UI for corporate use
+- Asset management
+  - Create, edit, view, and delete assets
+  - Track asset tag, serial number, category, supplier, department, quantity, and status
+
+- Assignment management
+  - Assign assets to users
+  - Return assigned assets
+  - Track assignment history and accountability
+
+- Inventory control
+  - Stock in / stock out actions
+  - Low stock detection
+  - Automated status updates
+
+- User management
+  - System Administrator, Asset Officer, Manager, and Staff roles
+  - User administration
+  - Account impersonation / switch account for admin
+
+- Notifications
+  - Notification center
+  - Header notification dropdown
+  - Mark read / mark all read
+
+- Settings
+  - System branding
+  - System name and tagline preview
+
+- Profile management
+  - Update profile details
+  - Upload profile photo
+  - Change password
+
+- Dashboard
+  - Asset statistics
+  - Recent assignments
+  - Activity logs
+  - Notifications summary
 
 ---
 
-##  Tech Stack
+## Tech Stack
 
-* Laravel (Backend)
-* Blade (Frontend)
-* MySQL (Database)
-* XAMPP (Local environment)
+- Laravel
+- Blade
+- Tailwind CSS
+- Alpine.js
+- MySQL
+- XAMPP
+- VS Code
 
 ---
+
+## Local Development Environment
+
+This project is being developed with:
+
+- **VS Code**
+- **XAMPP**
+- **PHP**
+- **MySQL**
+- **Composer**
+- **Node.js / npm**
+
+---
+
+## Project Structure
+
+```bash
+backend/
+├── app/
+├── bootstrap/
+├── config/
+├── database/
+├── public/
+├── resources/
+├── routes/
+├── storage/
+├── .env.example
+├── artisan
+├── composer.json
+├── package.json
+└── README.md
+
 
 ##  Installation (Step-by-step)
 
