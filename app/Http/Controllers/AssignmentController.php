@@ -166,4 +166,30 @@ class AssignmentController extends Controller
             ->route('assignments.index')
             ->with('success', 'Asset returned successfully.');
     }
+
+    public function apiIndex(Request $request)
+{
+    $query = Assignment::with(['item', 'user', 'assignedDepartment'])
+        ->latest('assigned_at');
+
+    return response()->json(
+        $query->paginate(10)
+    );
+}
+
+public function apiStore(Request $request)
+{
+    $validated = $request->validate([
+        'item_id' => 'required|exists:items,id',
+        'user_id' => 'required|exists:users,id',
+        'department_id' => 'required|exists:departments,id',
+    ]);
+
+    $assignment = Assignment::create([
+        ...$validated,
+        'assigned_at' => now(),
+    ]);
+
+    return response()->json($assignment, 201);
+}
 }

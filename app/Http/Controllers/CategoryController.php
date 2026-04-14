@@ -78,4 +78,13 @@ class CategoryController extends Controller
 
         return redirect()->route('categories.index')->with('success', 'Category deleted successfully.');
     }
+
+    //Newly Added ReactJs
+public function apiIndex()
+{
+    return response()->json(
+        Category::latest()->paginate(10)
+    );
+}
+
 }

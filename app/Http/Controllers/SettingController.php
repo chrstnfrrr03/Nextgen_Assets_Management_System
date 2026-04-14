@@ -75,4 +75,11 @@ class SettingController extends Controller
             ->route('settings.index')
             ->with('success', 'Setting deleted successfully.');
     }
+
+    public function apiIndex()
+{
+    return response()->json(
+        DB::table('settings')->get()
+    );
+}
 }

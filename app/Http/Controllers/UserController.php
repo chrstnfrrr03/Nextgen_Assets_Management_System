@@ -185,4 +185,10 @@ class UserController extends Controller
             ->route('dashboard')
             ->with('success', 'Returned to administrator account.');
     }
+public function apiIndex()
+{
+    return response()->json(
+        User::latest()->paginate(10)
+    );
+}
 }

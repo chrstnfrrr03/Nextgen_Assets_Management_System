@@ -96,4 +96,35 @@ class InventoryController extends Controller
 
         return back()->with('success', 'Stock removed successfully.');
     }
+     
+        public function apiIndex()
+{
+    return response()->json(
+        Item::with(['category', 'supplier', 'department'])
+            ->orderBy('name')
+            ->paginate(10)
+    );
+}
+
+public function apiStockIn(Request $request, Item $item)
+{
+    $request->validate(['quantity' => 'required|integer|min:1']);
+
+    $item->increment('quantity', $request->quantity);
+
+    return response()->json(['message' => 'Stock added']);
+}
+
+public function apiStockOut(Request $request, Item $item)
+{
+    $request->validate(['quantity' => 'required|integer|min:1']);
+
+    if ($request->quantity > $item->quantity) {
+        return response()->json(['error' => 'Not enough stock'], 400);
+    }
+
+    $item->decrement('quantity', $request->quantity);
+
+    return response()->json(['message' => 'Stock removed']);
+}
 }

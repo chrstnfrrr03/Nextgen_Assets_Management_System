@@ -72,4 +72,11 @@ class DepartmentController extends Controller
 
         return redirect()->route('departments.index')->with('success', 'Department deleted successfully.');
     }
+
+    public function apiIndex()
+{
+    return response()->json(
+        Department::latest()->paginate(10)
+    );
+}
 }

@@ -106,4 +106,20 @@ class NotificationController extends Controller
 
         return back()->with('success', 'All notifications marked as read.');
     }
+
+    public function apiIndex()
+{
+    return response()->json(
+        SystemNotification::where('user_id', Auth::id())
+            ->latest()
+            ->paginate(20)
+    );
+}
+
+public function apiMarkRead(SystemNotification $notification)
+{
+    $notification->update(['read_at' => now()]);
+
+    return response()->json(['message' => 'Marked as read']);
+}
 }

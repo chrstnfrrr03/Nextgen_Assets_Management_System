@@ -58,4 +58,9 @@ class ProfileController extends Controller
             ->route('profile.edit')
             ->with('success', 'Profile updated successfully.');
     }
+
+    public function apiMe()
+    {
+        return response()->json(Auth::user());
+    }
 }

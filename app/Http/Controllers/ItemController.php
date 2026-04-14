@@ -179,4 +179,46 @@ class ItemController extends Controller
 
         return redirect()->route('items.index')->with('success', 'Asset deleted.');
     }
+
+    //New API index code Upgraded to ReactJS
+
+
+public function apiIndex(Request $request)
+{
+    $query = Item::with(['category', 'supplier', 'department', 'activeAssignment.user'])
+        ->latest();
+
+    if ($request->filled('search')) {
+        $search = trim((string) $request->search);
+
+        $query->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+                ->orWhere('asset_tag', 'like', "%{$search}%")
+                ->orWhere('serial_number', 'like', "%{$search}%");
+        });
+    }
+
+    return response()->json(
+        $query->paginate(10)
+    );
+}
+
+public function apiStore(Request $request)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'category_id' => 'required|exists:categories,id',
+        'supplier_id' => 'required|exists:suppliers,id',
+        'department_id' => 'required|exists:departments,id',
+    ]);
+
+    $item = Item::create([
+        ...$validated,
+        'quantity' => 1,
+        'status' => 'available',
+    ]);
+
+    return response()->json($item, 201);
+}
+
 }

@@ -70,4 +70,34 @@ class AuthController extends Controller
 
         return redirect()->route('login');
     }
+
+    //New Methods Using ReactJS
+    public function apiLogin(Request $request)
+{
+    $credentials = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required'],
+    ]);
+
+    if (!Auth::attempt($credentials)) {
+        return response()->json([
+            'message' => 'Invalid credentials'
+        ], 401);
+    }
+
+    $request->session()->regenerate();
+
+    return response()->json([
+        'user' => Auth::user()
+    ]);
+}
+
+public function apiLogout(Request $request)
+{
+    Auth::logout();
+
+    return response()->json([
+        'message' => 'Logged out'
+    ]);
+}
 }

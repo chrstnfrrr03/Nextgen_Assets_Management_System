@@ -122,4 +122,26 @@ class DashboardController extends Controller
             })->where('status', 'maintenance')->count(),
         ]);
     }
+       public function api()
+{
+    $user = Auth::user();
+
+    return response()->json([
+        'totalAssets' => Item::count(),
+        'availableAssets' => Item::where('status', 'available')->count(),
+        'assignedAssets' => Item::where('status', 'assigned')->count(),
+        'maintenanceAssets' => Item::where('status', 'maintenance')->count(),
+        'retiredAssets' => Item::where('status', 'retired')->count(),
+        'lowStockAssets' => Item::where('quantity', '<=', 3)->count(),
+
+        'activeAssignments' => Assignment::whereNull('returned_at')->count(),
+
+        'overdueAssignments' => Assignment::whereNull('returned_at')
+            ->whereDate('assigned_at', '<=', now()->subDays(14))
+            ->count(),
+
+        'user' => $user,
+    ]);
+}
+
 }
