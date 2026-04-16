@@ -1,224 +1,133 @@
-# NextGen Asset Management System
+# NextGen Assets Management System
 
-A Laravel-based asset management system for tracking, assigning, returning, and monitoring organizational assets in one place.
-
-It is built for internal company use with support for asset records, assignments, inventory movement, departments, suppliers, user roles, notifications, and dashboard reporting.
-
----
+Laravel + React asset management system for tracking assets, assignments, departments, inventory, suppliers, users, settings, and notifications.
 
 ## Features
 
-- Asset management
-  - Create, edit, view, and delete assets
-  - Track asset tag, serial number, category, supplier, department, quantity, and status
-
-- Assignment management
-  - Assign assets to users
-  - Return assigned assets
-  - Track assignment history and accountability
-
-- Inventory control
-  - Stock in / stock out actions
-  - Low stock detection
-  - Automated status updates
-
-- User management
-  - System Administrator, Asset Officer, Manager, and Staff roles
-  - User administration
-  - Account impersonation / switch account for admin
-
-- Notifications
-  - Notification center
-  - Header notification dropdown
-  - Mark read / mark all read
-
-- Settings
-  - System branding
-  - System name and tagline preview
-
-- Profile management
-  - Update profile details
-  - Upload profile photo
-  - Change password
-
+- Laravel backend
+- React SPA frontend
+- Authentication
 - Dashboard
-  - Asset statistics
-  - Recent assignments
-  - Activity logs
-  - Notifications summary
-
----
+- Assets management
+- Assignments tracking
+- Departments, categories, suppliers
+- Settings and profile image upload
 
 ## Tech Stack
 
-- Laravel
-- Blade
-- Tailwind CSS
-- Alpine.js
+- PHP 8.3+
+- Laravel 12
+- React
+- Vite
 - MySQL
-- XAMPP
+- Tailwind CSS
+
+## Requirements
+
+Make sure you have installed:
+
+- PHP 8.2 or newer
+- Composer
+- Node.js 18 or newer
+- npm
+- MySQL
+- Git
 - VS Code
 
----
-
-## Local Development Environment
-
-This project is being developed with:
-
-- **VS Code**
-- **XAMPP**
-- **PHP**
-- **MySQL**
-- **Composer**
-- **Node.js / npm**
-
----
-
-## Project Structure
+## Clone the Project
 
 ```bash
-backend/
-├── app/
-├── bootstrap/
-├── config/
-├── database/
-├── public/
-├── resources/
-├── routes/
-├── storage/
-├── .env.example
-├── artisan
-├── composer.json
-├── package.json
-└── README.md
+git clone https://github.com/austinkalisik/Nextgen_Assets_Management_System.git
 
+cd Nextgen_Assets_Management_System
 
-##  Installation (Step-by-step)
+## (Open in VS Code)
 
-### 1. Clone repository
+-code .
+-Install Dependencies
+-composer install
+-npm install
+-Environment Setup
 
-```bash
-git clone https://github.com/austinkalisik/nextgen-assets.git
-cd nextgen-assets/backend
-```
+Copy the environment file:
 
----
+copy .env.example .env
 
-### 2. Install dependencies
+## If you are using Git Bash or WSL:
 
-```bash
-composer install
-```
-
----
-
-### 3. Setup environment
-
-```bash
 cp .env.example .env
+
+## Generate the Laravel app key:
+
 php artisan key:generate
-```
 
----
+## Database Setup
 
-### 4. Configure database
+##Create a MySQL database, for example:
 
-Open `.env` and update:
+CREATE DATABASE nextgen_assets;
 
-```env
+Then update .env:
+
+APP_NAME="NextGen Assets"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://127.0.0.1:8000
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
 DB_DATABASE=nextgen_assets
 DB_USERNAME=root
 DB_PASSWORD=
-```
 
----
+## In Terminal Run
+-Run Migrations and Seeders
+-php artisan migrate --seed
+-Storage Link
+-php artisan storage:link
+## Start the Application
 
-### 5. Create database
+## Run Laravel backend:
 
-In phpMyAdmin:
-
-```
-Create database: nextgen_assets
-```
-
----
-
-### 6. Run migrations + seed
-
-```bash
-php artisan migrate:fresh --seed
-```
-
----
-
-### 7. Start server
-
-```bash
 php artisan serve
-```
 
----
+Run Vite frontend in a second terminal:
 
-##  Default Login
+npm run dev
 
-```
+Open:
 
-```
-## Default Login Accounts
-
-After running:
-
-php artisan migrate:fresh --seed
-
-Use any of the following accounts:
-
-Admin:
+http://127.0.0.1:8000
+Demo Login
 Email: admin@nextgen.local
 Password: password
 
-Asset Officer:
-Email: assets@nextgen.local
-Password: password
-
-ICT Support:
-Email: support@nextgen.local
-Password: password
-
-Manager:
-Email: operations@nextgen.local
-Password: password
-
----
-
- Note:
-If login fails, ensure you have seeded the database:
-
+## Common Fixes
+Clear caches
+php artisan optimize:clear
+Rebuild frontend
+npm install
+npm run dev
+Reset database
 php artisan migrate:fresh --seed
 
----
 
-##  Key Modules
+## Project Structure
+app/
+bootstrap/
+config/
+database/
+public/
+resources/
+routes/
+storage/
+Notes
+##Make sure MySQL(XAMPP) is running before migration
+Do not commit .env
+Do not commit vendor or node_modules
+Use php artisan storage:link if profile images do not show
+License
 
-* Dashboard → Overview & analytics
-* Assets → Manage company assets
-* Assignments → Assign & return assets
-* Inventory → Stock control
-* Suppliers → Vendor management
-* Categories → Asset classification
-* Departments → Organizational structure
-* Users → System users
-* Settings → System config
-
----
-
-##  Notes
-
-* `.env` is not included (create manually)
-* Works with XAMPP MySQL
-* Designed for corporate asset tracking
-
----
-
-## Author
-
-Programmer4
+This project is for testing and educational/demo use.

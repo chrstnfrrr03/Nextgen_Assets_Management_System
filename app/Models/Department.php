@@ -27,8 +27,12 @@ class Department extends Model
 {
     protected $fillable = [
         'name',
+        'description',
     ];
-
+    protected $hidden=[
+        'created_at',
+        'updated_at',
+    ];
     public function items(): HasMany
     {
         return $this->hasMany(Item::class);

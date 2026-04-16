@@ -3,18 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetLog;
-use App\Models\Category;
-use App\Models\Department;
 use App\Models\Item;
-use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
 
 class ItemController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
+
         $query = Item::with(['category', 'supplier', 'department', 'activeAssignment.user'])
             ->latest();
 
@@ -23,6 +21,7 @@ class ItemController extends Controller
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('asset_tag', 'like', "%{$search}%")
                     ->orWhere('serial_number', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
@@ -33,9 +32,6 @@ class ItemController extends Controller
                         $sub->where('name', 'like', "%{$search}%");
                     })
                     ->orWhereHas('department', function ($sub) use ($search) {
-                        $sub->where('name', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('activeAssignment.user', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
             });
@@ -53,90 +49,47 @@ class ItemController extends Controller
             $query->where('department_id', $request->department_id);
         }
 
-        $items = $query->paginate(10)->withQueryString();
-
-        $categories = Category::orderBy('name')->get();
-        $suppliers = Supplier::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
-
-        return view('items.index', [
-            'items' => $items,
-            'categories' => $categories,
-            'suppliers' => $suppliers,
-            'departments' => $departments,
-            'filters' => [
-                'search' => $request->search,
-                'status' => $request->status,
-                'category_id' => $request->category_id,
-                'department_id' => $request->department_id,
-            ],
-        ]);
-    }
-
-    public function create(): View
-    {
-        $categories = Category::orderBy('name')->get();
-        $suppliers = Supplier::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
-
-        return view('items.create', [
-            'categories' => $categories,
-            'suppliers' => $suppliers,
-            'departments' => $departments,
-        ]);
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'rows.*.name' => 'required|string|max:255',
-            'rows.*.category_id' => 'required|exists:categories,id',
-            'rows.*.supplier_id' => 'required|exists:suppliers,id',
-            'rows.*.department_id' => 'required|exists:departments,id',
-            'rows.*.asset_tag' => ['nullable', 'string', 'max:255', 'distinct', 'unique:items,asset_tag'],
-            'rows.*.serial_number' => ['nullable', 'string', 'max:255', 'distinct', 'unique:items,serial_number'],
-            'rows.*.location' => 'nullable|string|max:255',
-            'rows.*.purchase_date' => 'nullable|date',
+            'name' => ['required', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:255', 'unique:items,sku'],
+            'category_id' => ['required', 'exists:categories,id'],
+            'supplier_id' => ['required', 'exists:suppliers,id'],
+            'department_id' => ['required', 'exists:departments,id'],
+            'asset_tag' => ['nullable', 'string', 'max:255', 'unique:items,asset_tag'],
+            'serial_number' => ['nullable', 'string', 'max:255', 'unique:items,serial_number'],
+            'quantity' => ['required', 'integer', 'min:0'],
+            'status' => ['required', 'in:available,assigned,maintenance,lost,retired'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'purchase_date' => ['nullable', 'date'],
         ]);
 
-        $authUser = Auth::user();
+        $item = Item::create($validated);
 
-        foreach ($validated['rows'] as $row) {
-            $item = Item::create([
-                ...$row,
-                'quantity' => 1,
-                'status' => 'available',
-            ]);
+        AssetLog::log(
+            $item->id,
+            AssetLog::ACTION_CREATED,
+            $item->name . ' created by ' . (Auth::user()?->name ?? 'System')
+        );
 
-            AssetLog::log(
-                $item->id,
-                AssetLog::ACTION_CREATED,
-                $item->name . ' created with status ' . $item->status . ' by ' . ($authUser?->name ?? 'System')
-            );
-        }
-
-        return redirect()->route('items.index')->with('success', 'Assets created successfully.');
+        return response()->json($item->load(['category', 'supplier', 'department']), 201);
     }
 
-    public function show(Item $item): View
+    public function show(Item $item)
     {
-        $item->load(['category', 'supplier', 'department', 'activeAssignment.user', 'activeAssignment.assignedDepartment']);
+        $item->load([
+            'category',
+            'supplier',
+            'department',
+            'activeAssignment.user',
+            'activeAssignment.assignedDepartment',
+        ]);
 
-        $logs = AssetLog::with('user')
-            ->where('item_id', $item->id)
-            ->latest()
-            ->get();
-
-        return view('items.show', compact('item', 'logs'));
-    }
-
-    public function edit(Item $item): View
-    {
-        $categories = Category::orderBy('name')->get();
-        $suppliers = Supplier::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
-
-        return view('items.edit', compact('item', 'categories', 'suppliers', 'departments'));
+        return response()->json($item);
     }
 
     public function update(Request $request, Item $item)
@@ -144,81 +97,40 @@ class ItemController extends Controller
         $oldStatus = $item->status;
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'supplier_id' => 'required|exists:suppliers,id',
-            'department_id' => 'required|exists:departments,id',
-            'location' => 'nullable|string|max:255',
-            'purchase_date' => 'nullable|date',
+            'name' => ['required', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:255', 'unique:items,sku,' . $item->id],
+            'category_id' => ['required', 'exists:categories,id'],
+            'supplier_id' => ['required', 'exists:suppliers,id'],
+            'department_id' => ['required', 'exists:departments,id'],
+            'asset_tag' => ['nullable', 'string', 'max:255', 'unique:items,asset_tag,' . $item->id],
+            'serial_number' => ['nullable', 'string', 'max:255', 'unique:items,serial_number,' . $item->id],
+            'quantity' => ['required', 'integer', 'min:0'],
+            'status' => ['required', 'in:available,assigned,maintenance,lost,retired'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'purchase_date' => ['nullable', 'date'],
         ]);
 
         $item->update($validated);
 
-        $authUser = Auth::user();
-
         AssetLog::log(
             $item->id,
             AssetLog::ACTION_UPDATED,
-            'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . ($authUser?->name ?? 'System')
+            'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . (Auth::user()?->name ?? 'System')
         );
 
-        return redirect()->route('items.index')->with('success', 'Asset updated.');
+        return response()->json($item->fresh(['category', 'supplier', 'department']));
     }
 
     public function destroy(Item $item)
     {
-        $authUser = Auth::user();
-
         AssetLog::log(
             $item->id,
             AssetLog::ACTION_DELETED,
-            $item->name . ' permanently deleted by ' . ($authUser?->name ?? 'System')
+            $item->name . ' permanently deleted by ' . (Auth::user()?->name ?? 'System')
         );
 
         $item->delete();
 
-        return redirect()->route('items.index')->with('success', 'Asset deleted.');
+        return response()->json(['message' => 'Item deleted successfully']);
     }
-
-    //New API index code Upgraded to ReactJS
-
-
-public function apiIndex(Request $request)
-{
-    $query = Item::with(['category', 'supplier', 'department', 'activeAssignment.user'])
-        ->latest();
-
-    if ($request->filled('search')) {
-        $search = trim((string) $request->search);
-
-        $query->where(function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-                ->orWhere('asset_tag', 'like', "%{$search}%")
-                ->orWhere('serial_number', 'like', "%{$search}%");
-        });
-    }
-
-    return response()->json(
-        $query->paginate(10)
-    );
-}
-
-public function apiStore(Request $request)
-{
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'category_id' => 'required|exists:categories,id',
-        'supplier_id' => 'required|exists:suppliers,id',
-        'department_id' => 'required|exists:departments,id',
-    ]);
-
-    $item = Item::create([
-        ...$validated,
-        'quantity' => 1,
-        'status' => 'available',
-    ]);
-
-    return response()->json($item, 201);
-}
-
 }

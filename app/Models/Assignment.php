@@ -19,6 +19,20 @@ class Assignment extends Model
         'returned_at' => 'datetime',
     ];
 
+        //  Newly Added ReactJS
+        protected $appends = ['is_active'];
+
+protected $hidden = [
+    'created_at',
+    'updated_at',
+];
+
+public function getIsActiveAttribute(): bool
+{
+    return $this->isActive();
+}
+
+
     //  Asset relationship
     public function item()
     {

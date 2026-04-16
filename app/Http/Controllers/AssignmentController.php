@@ -4,20 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\AssetLog;
 use App\Models\Assignment;
-use App\Models\Department;
 use App\Models\Item;
-use App\Models\User;
-use App\Services\SystemNotificationService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
 
 class AssignmentController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
-        $query = Assignment::with(['item', 'user', 'assignedDepartment'])->latest('assigned_at');
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
+
+        $query = Assignment::with(['item', 'user', 'assignedDepartment'])
+            ->latest('assigned_at');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('item', function ($sub) use ($search) {
+                    $sub->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('asset_tag', 'like', "%{$search}%");
+                })
+                    ->orWhereHas('user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('assignedDepartment', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
 
         if ($request->filled('status')) {
             if ($request->status === 'active') {
@@ -27,102 +44,61 @@ class AssignmentController extends Controller
             }
         }
 
-        $assignments = $query->paginate(10)->withQueryString();
-
-        return view('assignments.index', compact('assignments'));
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
-    public function create(): View
+    public function store(Request $request)
     {
-        $activeItemIds = Assignment::whereNull('returned_at')->pluck('item_id');
-
-        $items = Item::with(['category', 'department'])
-            ->whereNotIn('id', $activeItemIds)
-            ->where('status', '!=', 'retired')
-            ->orderBy('name')
-            ->get();
-
-        $users = User::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
-
-        return view('assignments.create', compact('items', 'users', 'departments'));
-    }
-
-    public function store(Request $request, SystemNotificationService $notificationService): RedirectResponse
-    {
-        $request->validate([
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.item_id' => ['required', 'exists:items,id'],
-            'rows.*.user_id' => ['required', 'exists:users,id'],
-            'rows.*.department_id' => ['required', 'exists:departments,id'],
-            'rows.*.assigned_at' => ['required', 'date'],
+        $validated = $request->validate([
+            'item_id' => ['required', 'exists:items,id'],
+            'user_id' => ['required', 'exists:users,id'],
+            'department_id' => ['required', 'exists:departments,id'],
         ]);
 
-        $createdCount = 0;
+        $item = Item::findOrFail($validated['item_id']);
 
-        foreach ($request->rows as $row) {
-            $item = Item::find($row['item_id']);
-
-            if (! $item) {
-                continue;
-            }
-
-            if ($item->quantity <= 0) {
-                continue;
-            }
-
-            $alreadyAssigned = Assignment::where('item_id', $row['item_id'])
-                ->whereNull('returned_at')
-                ->exists();
-
-            if ($alreadyAssigned) {
-                continue;
-            }
-
-            $assignment = Assignment::create([
-                'item_id' => $row['item_id'],
-                'user_id' => $row['user_id'],
-                'department_id' => $row['department_id'],
-                'assigned_at' => $row['assigned_at'],
-            ]);
-
-            $assignment->load(['item', 'user', 'assignedDepartment']);
-
-            $item->decrement('quantity');
-            $item->refresh();
-
-            $item->update([
-                'department_id' => $row['department_id'],
-            ]);
-
-            $item->syncAutomatedStatus();
-
-            AssetLog::log(
-                $item->id,
-                AssetLog::ACTION_ASSIGNED,
-                "{$item->name} assigned to {$assignment->user->name}"
-            );
-
-            $notificationService->notifyUser(
-                $assignment->user_id,
-                'info',
-                'Asset assigned',
-                "{$item->name} assigned to you",
-                route('items.show', $item->id)
-            );
-
-            $createdCount++;
+        if ($item->quantity <= 0) {
+            return response()->json(['message' => 'Item is out of stock'], 422);
         }
 
-        return redirect()
-            ->route('assignments.index')
-            ->with('success', "{$createdCount} assignment(s) processed.");
+        $alreadyAssigned = Assignment::where('item_id', $validated['item_id'])
+            ->whereNull('returned_at')
+            ->exists();
+
+        if ($alreadyAssigned) {
+            return response()->json(['message' => 'Item is already assigned'], 422);
+        }
+
+        $assignment = Assignment::create([
+            'item_id' => $validated['item_id'],
+            'user_id' => $validated['user_id'],
+            'department_id' => $validated['department_id'],
+            'assigned_at' => now(),
+        ]);
+
+        $assignment->load(['item', 'user', 'assignedDepartment']);
+
+        $item->decrement('quantity');
+        $item->refresh();
+        $item->update(['department_id' => $validated['department_id']]);
+
+        if (method_exists($item, 'syncAutomatedStatus')) {
+            $item->syncAutomatedStatus();
+        }
+
+        AssetLog::log(
+            $item->id,
+            AssetLog::ACTION_ASSIGNED,
+            "{$item->name} assigned to {$assignment->user->name}"
+        );
+
+        return response()->json($assignment, 201);
     }
 
-    public function return(Request $request, Assignment $assignment, SystemNotificationService $notificationService): RedirectResponse
+    public function returnItem(Assignment $assignment)
     {
         if ($assignment->returned_at) {
-            return back()->with('error', 'This assignment has already been returned.');
+            return response()->json(['message' => 'Assignment already returned'], 422);
         }
 
         $assignment->load(['item', 'user', 'assignedDepartment']);
@@ -133,63 +109,20 @@ class AssignmentController extends Controller
 
         $assignment->item->increment('quantity');
         $assignment->item->refresh();
-        $assignment->item->syncAutomatedStatus();
 
-        $authUser = Auth::user();
+        if (method_exists($assignment->item, 'syncAutomatedStatus')) {
+            $assignment->item->syncAutomatedStatus();
+        }
 
         AssetLog::log(
             $assignment->item_id,
             AssetLog::ACTION_RETURNED,
-            ($assignment->item->name ?? 'Asset') . ' returned by ' . ($authUser?->name ?? 'System')
+            ($assignment->item->name ?? 'Asset') . ' returned by ' . (Auth::user()?->name ?? 'System')
         );
 
-        $notificationService->notifyUser(
-            $assignment->user_id,
-            'success',
-            'Asset return recorded',
-            ($assignment->item->name ?? 'Asset') . ' return has been recorded.',
-            route('items.show', $assignment->item_id),
-            Assignment::class,
-            $assignment->id
-        );
-
-        $notificationService->notifyAdmins(
-            'success',
-            'Asset returned',
-            ($assignment->item->name ?? 'Asset') . ' has been returned.',
-            route('assignments.index'),
-            Assignment::class,
-            $assignment->id
-        );
-
-        return redirect()
-            ->route('assignments.index')
-            ->with('success', 'Asset returned successfully.');
+        return response()->json([
+            'message' => 'Asset returned successfully',
+            'assignment' => $assignment->fresh(['item', 'user', 'assignedDepartment']),
+        ]);
     }
-
-    public function apiIndex(Request $request)
-{
-    $query = Assignment::with(['item', 'user', 'assignedDepartment'])
-        ->latest('assigned_at');
-
-    return response()->json(
-        $query->paginate(10)
-    );
-}
-
-public function apiStore(Request $request)
-{
-    $validated = $request->validate([
-        'item_id' => 'required|exists:items,id',
-        'user_id' => 'required|exists:users,id',
-        'department_id' => 'required|exists:departments,id',
-    ]);
-
-    $assignment = Assignment::create([
-        ...$validated,
-        'assigned_at' => now(),
-    ]);
-
-    return response()->json($assignment, 201);
-}
 }

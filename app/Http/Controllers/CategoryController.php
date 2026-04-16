@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
+
         $query = Category::withCount('items')->latest();
 
         if ($request->filled('search')) {
@@ -22,41 +22,27 @@ class CategoryController extends Controller
             });
         }
 
-        $categories = $query->paginate(10)->withQueryString();
-
-        return view('categories.index', compact('categories'));
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
-    public function create(): View
-    {
-        return view('categories.create');
-    }
-
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:categories,name'],
             'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        Category::create($validated);
+        $category = Category::create($validated);
 
-        return redirect()->route('categories.index')->with('success', 'Category created successfully.');
+        return response()->json($category, 201);
     }
 
-    public function show(Category $category): View
+    public function show(Category $category)
     {
-        $category->load('items');
-
-        return view('categories.show', compact('category'));
+        return response()->json($category);
     }
 
-    public function edit(Category $category): View
-    {
-        return view('categories.edit', compact('category'));
-    }
-
-    public function update(Request $request, Category $category): RedirectResponse
+    public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:categories,name,' . $category->id],
@@ -65,26 +51,17 @@ class CategoryController extends Controller
 
         $category->update($validated);
 
-        return redirect()->route('categories.index')->with('success', 'Category updated successfully.');
+        return response()->json($category->fresh());
     }
 
-    public function destroy(Category $category): RedirectResponse
+    public function destroy(Category $category)
     {
         if ($category->items()->exists()) {
-            return redirect()->route('categories.index')->with('error', 'Cannot delete category with linked items.');
+            return response()->json(['message' => 'Cannot delete category with linked items.'], 422);
         }
 
         $category->delete();
 
-        return redirect()->route('categories.index')->with('success', 'Category deleted successfully.');
+        return response()->json(['message' => 'Category deleted successfully']);
     }
-
-    //Newly Added ReactJs
-public function apiIndex()
-{
-    return response()->json(
-        Category::latest()->paginate(10)
-    );
-}
-
 }

@@ -3,80 +3,65 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class DepartmentController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
+
         $query = Department::withCount('items')->latest();
 
         if ($request->filled('search')) {
             $search = trim((string) $request->search);
-            $query->where('name', 'like', "%{$search}%");
+
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
         }
 
-        $departments = $query->paginate(10)->withQueryString();
-
-        return view('departments.index', compact('departments'));
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
-    public function create(): View
-    {
-        return view('departments.create');
-    }
-
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:departments,name'],
+            'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        Department::create($validated);
+        $department = Department::create($validated);
 
-        return redirect()->route('departments.index')->with('success', 'Department created successfully.');
+        return response()->json($department, 201);
     }
 
-    public function show(Department $department): View
+    public function show(Department $department)
     {
-        $department->load('items');
-
-        return view('departments.show', compact('department'));
+        return response()->json($department);
     }
 
-    public function edit(Department $department): View
-    {
-        return view('departments.edit', compact('department'));
-    }
-
-    public function update(Request $request, Department $department): RedirectResponse
+    public function update(Request $request, Department $department)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:departments,name,' . $department->id],
+            'description' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $department->update($validated);
 
-        return redirect()->route('departments.index')->with('success', 'Department updated successfully.');
+        return response()->json($department->fresh());
     }
 
-    public function destroy(Department $department): RedirectResponse
+    public function destroy(Department $department)
     {
         if ($department->items()->exists() || $department->assignments()->exists()) {
-            return redirect()->route('departments.index')->with('error', 'Cannot delete department with linked records.');
+            return response()->json(['message' => 'Cannot delete department with linked records.'], 422);
         }
 
         $department->delete();
 
-        return redirect()->route('departments.index')->with('success', 'Department deleted successfully.');
+        return response()->json(['message' => 'Department deleted successfully']);
     }
-
-    public function apiIndex()
-{
-    return response()->json(
-        Department::latest()->paginate(10)
-    );
-}
 }

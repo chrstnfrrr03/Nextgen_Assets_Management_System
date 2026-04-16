@@ -17,6 +17,17 @@ class SystemNotification extends Model
         'read_at',
     ];
 
+    protected $appends= ['is_read'];
+
+    protected $hidden=['
+           updated_at'];
+
+
+           public function getIsReadAttribute(): bool
+           {
+            return $this->isRead();
+           }
+
     protected function casts(): array
     {
         return [

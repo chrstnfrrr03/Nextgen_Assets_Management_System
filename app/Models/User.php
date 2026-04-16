@@ -2,18 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-/**
- * @property string $name
- * @property string $email
- * @property string $role
- */
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use Notifiable;
 
     protected $fillable = [
         'name',
@@ -26,15 +20,18 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'created_at',
+        'updated_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    protected $appends = [
+        'profile_photo_url',
+    ];
 
     public function assignments()
     {
@@ -56,50 +53,17 @@ class User extends Authenticatable
         return $this->hasMany(SystemNotification::class);
     }
 
+    public function getProfilePhotoUrlAttribute(): ?string
+    {
+        if (!$this->profile_photo) {
+            return null;
+        }
+
+        return route('profile.photo.show', ['user' => $this->id, 'v' => optional($this->updated_at)?->timestamp]);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
-    }
-
-    public function isAssetOfficer(): bool
-    {
-        return $this->role === 'asset_officer';
-    }
-
-    public function isManager(): bool
-    {
-        return $this->role === 'manager';
-    }
-
-    public function isStaff(): bool
-    {
-        return $this->role === 'staff';
-    }
-
-    public function isSystemAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    public function canManageUsers(): bool
-    {
-        return $this->isAdmin();
-    }
-
-    public function canManageAssets(): bool
-    {
-        return $this->isAdmin() || $this->isAssetOfficer();
-    }
-
-    public function canMonitorOperations(): bool
-    {
-        return $this->isAdmin() || $this->isManager() || $this->isAssetOfficer();
-    }
-
-    public function getProfilePhotoUrlAttribute(): ?string
-    {
-        return $this->profile_photo
-            ? asset('storage/' . $this->profile_photo)
-            : null;
     }
 }

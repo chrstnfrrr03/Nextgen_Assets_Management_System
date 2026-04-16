@@ -2,146 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AssetLog;
 use App\Models\Assignment;
-use App\Models\Category;
-use App\Models\Department;
 use App\Models\Item;
-use App\Models\SystemNotification;
-use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index(): View
+    protected function getIntSetting(string $key, int $default): int
     {
-        $user = Auth::user();
+        $value = DB::table('settings')->where('key', $key)->value('value');
 
-        if ($user->isAdmin() || $user->isAssetOfficer() || $user->isManager()) {
-            return $this->operationsDashboard($user);
+        if (!is_numeric($value)) {
+            return $default;
         }
 
-        return $this->userWorkspace($user);
+        return (int) $value;
     }
 
-    protected function operationsDashboard(User $user): View
+    public function index()
     {
-        return view('dashboard.index', [
-            'dashboardMode' => 'operations',
-            'user' => $user,
+        $lowStockThreshold = $this->getIntSetting('low_stock_threshold', 5);
+        $overdueDays = $this->getIntSetting('assignment_overdue_days', 7);
 
-            'totalAssets' => Item::count(),
-            'availableAssets' => Item::where('status', 'available')->count(),
-            'assignedAssets' => Item::where('status', 'assigned')->count(),
-            'maintenanceAssets' => Item::where('status', 'maintenance')->count(),
-            'retiredAssets' => Item::where('status', 'retired')->count(),
-            'lowStockAssets' => Item::where('quantity', '<=', 3)->count(),
-
-            'recentAssignments' => Assignment::with(['item', 'user', 'assignedDepartment'])
-                ->latest('assigned_at')
-                ->take(8)
-                ->get(),
-
-            'recentActivity' => AssetLog::with(['item', 'user'])
-                ->latest()
-                ->take(12)
-                ->get(),
-
-            'categorySummary' => Category::withCount('items')
-                ->orderBy('name')
-                ->get(),
-
-            'departmentSummary' => Department::withCount('items')
-                ->orderBy('name')
-                ->get(),
-
-            'usersByRole' => User::selectRaw('role, COUNT(*) as total')
-                ->groupBy('role')
-                ->pluck('total', 'role'),
-
-            'activeAssignments' => Assignment::whereNull('returned_at')->count(),
-
-            'overdueAssignments' => Assignment::whereNull('returned_at')
-                ->whereDate('assigned_at', '<=', now()->subDays(14))
-                ->count(),
-
-            'unreadNotifications' => SystemNotification::where('user_id', $user->id)
-                ->whereNull('read_at')
-                ->latest()
-                ->take(6)
-                ->get(),
-        ]);
-    }
-
-    protected function userWorkspace(User $user): View
-    {
-        $myActiveAssignments = Assignment::with(['item', 'assignedDepartment'])
-            ->where('user_id', $user->id)
-            ->whereNull('returned_at')
-            ->latest('assigned_at')
-            ->get();
-
-        return view('dashboard.index', [
-            'dashboardMode' => 'user',
-            'user' => $user,
-
-            'myActiveAssignments' => $myActiveAssignments,
-
-            'myAssignmentHistory' => Assignment::with(['item', 'assignedDepartment'])
-                ->where('user_id', $user->id)
-                ->latest('assigned_at')
-                ->take(10)
-                ->get(),
-
-            'myRecentActivity' => AssetLog::with('item')
-                ->where('user_id', $user->id)
-                ->latest()
-                ->take(10)
-                ->get(),
-
-            'myNotifications' => SystemNotification::where('user_id', $user->id)
-                ->latest()
-                ->take(6)
-                ->get(),
-
-            'myAssignedAssetsCount' => $myActiveAssignments->count(),
-
-            'myOverdueAssignmentsCount' => Assignment::where('user_id', $user->id)
+        return response()->json([
+            'total_assets' => Item::count(),
+            'available' => Item::where('status', 'available')->count(),
+            'assigned' => Assignment::whereNull('returned_at')->count(),
+            'maintenance' => Item::where('status', 'maintenance')->count(),
+            'low_stock' => Item::where('quantity', '<', $lowStockThreshold)->count(),
+            'overdue' => Assignment::whereNotNull('assigned_at')
                 ->whereNull('returned_at')
-                ->whereDate('assigned_at', '<=', now()->subDays(14))
+                ->where('assigned_at', '<', now()->subDays($overdueDays))
                 ->count(),
-
-            'myDepartmentCount' => Assignment::where('user_id', $user->id)
-                ->whereNotNull('department_id')
-                ->distinct('department_id')
-                ->count('department_id'),
-
-            'myAssetsInMaintenance' => Item::whereHas('activeAssignment', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
-            })->where('status', 'maintenance')->count(),
+            'notifications_count' => 0,
+            'recent_assignments' => Assignment::with(['item', 'user', 'assignedDepartment'])
+                ->latest('assigned_at')
+                ->limit(5)
+                ->get(),
+            'recent_items' => Item::with(['category', 'supplier', 'department'])
+                ->latest()
+                ->limit(5)
+                ->get(),
         ]);
     }
-       public function api()
-{
-    $user = Auth::user();
-
-    return response()->json([
-        'totalAssets' => Item::count(),
-        'availableAssets' => Item::where('status', 'available')->count(),
-        'assignedAssets' => Item::where('status', 'assigned')->count(),
-        'maintenanceAssets' => Item::where('status', 'maintenance')->count(),
-        'retiredAssets' => Item::where('status', 'retired')->count(),
-        'lowStockAssets' => Item::where('quantity', '<=', 3)->count(),
-
-        'activeAssignments' => Assignment::whereNull('returned_at')->count(),
-
-        'overdueAssignments' => Assignment::whereNull('returned_at')
-            ->whereDate('assigned_at', '<=', now()->subDays(14))
-            ->count(),
-
-        'user' => $user,
-    ]);
-}
-
 }

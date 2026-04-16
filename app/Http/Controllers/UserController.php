@@ -3,12 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\View\View;
 
 class UserController extends Controller
 {
@@ -21,9 +19,11 @@ class UserController extends Controller
         );
     }
 
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $this->ensureAdmin();
+
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
 
         $query = User::query()
             ->withCount(['assignments', 'activeAssignments', 'assetLogs'])
@@ -39,19 +39,10 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->paginate(10)->withQueryString();
-
-        return view('users.index', compact('users'));
+        return response()->json($query->paginate($perPage)->withQueryString());
     }
 
-    public function create(): View
-    {
-        $this->ensureAdmin();
-
-        return view('users.create');
-    }
-
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $this->ensureAdmin();
 
@@ -59,19 +50,19 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', 'in:admin,manager,asset_officer,staff'],
-            'password' => ['required', 'confirmed', Password::min(6)],
+            'password' => ['nullable', 'confirmed', Password::min(6)],
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        $validated['password'] = empty($validated['password'])
+            ? Hash::make('password')
+            : Hash::make($validated['password']);
 
-        User::create($validated);
+        $user = User::create($validated);
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User created successfully.');
+        return response()->json($user, 201);
     }
 
-    public function show(User $user): View
+    public function show(User $user)
     {
         $this->ensureAdmin();
 
@@ -81,23 +72,10 @@ class UserController extends Controller
             'assetLogs.item',
         ]);
 
-        $recentLogs = $user->assetLogs()
-            ->with('item')
-            ->latest()
-            ->take(15)
-            ->get();
-
-        return view('users.show', compact('user', 'recentLogs'));
+        return response()->json($user);
     }
 
-    public function edit(User $user): View
-    {
-        $this->ensureAdmin();
-
-        return view('users.edit', compact('user'));
-    }
-
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(Request $request, User $user)
     {
         $this->ensureAdmin();
 
@@ -116,46 +94,36 @@ class UserController extends Controller
 
         $user->update($validated);
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User updated successfully.');
+        return response()->json($user);
     }
 
-    public function destroy(User $user): RedirectResponse
+    public function destroy(User $user)
     {
         $this->ensureAdmin();
 
         if ((int) Auth::id() === (int) $user->id) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'You cannot delete your own account.');
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
         }
 
         if ($user->activeAssignments()->exists()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Cannot delete user with active assignments.');
+            return response()->json(['message' => 'Cannot delete user with active assignments.'], 422);
         }
 
         if ($user->assignments()->exists()) {
-            return redirect()
-                ->route('users.index')
-                ->with('error', 'Cannot delete user with assignment history.');
+            return response()->json(['message' => 'Cannot delete user with assignment history.'], 422);
         }
 
         $user->delete();
 
-        return redirect()
-            ->route('users.index')
-            ->with('success', 'User deleted successfully.');
+        return response()->json(['message' => 'User deleted successfully']);
     }
 
-    public function impersonate(User $user): RedirectResponse
+    public function impersonate(User $user)
     {
         $this->ensureAdmin();
 
         if ((int) $user->id === (int) Auth::id()) {
-            return back()->with('error', 'You cannot impersonate yourself.');
+            return response()->json(['message' => 'You cannot impersonate yourself.'], 422);
         }
 
         session([
@@ -164,15 +132,15 @@ class UserController extends Controller
 
         Auth::login($user);
 
-        return redirect()
-            ->route('dashboard')
-            ->with('success', 'You are now logged in as ' . $user->name . '.');
+        return response()->json([
+            'message' => 'Now impersonating ' . $user->name,
+        ]);
     }
 
-    public function stopImpersonation(): RedirectResponse
+    public function stopImpersonation()
     {
         if (! session()->has('impersonator_id')) {
-            return redirect()->route('dashboard');
+            return response()->json(['message' => 'No impersonation session found.'], 422);
         }
 
         $impersonatorId = (int) session('impersonator_id');
@@ -181,14 +149,8 @@ class UserController extends Controller
 
         Auth::loginUsingId($impersonatorId);
 
-        return redirect()
-            ->route('dashboard')
-            ->with('success', 'Returned to administrator account.');
+        return response()->json([
+            'message' => 'Returned to administrator account.',
+        ]);
     }
-public function apiIndex()
-{
-    return response()->json(
-        User::latest()->paginate(10)
-    );
-}
 }

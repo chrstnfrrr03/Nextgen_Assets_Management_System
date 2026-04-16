@@ -7,30 +7,65 @@ use App\Models\Item;
 use App\Models\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
+    protected function getIntSetting(string $key, int $default): int
+    {
+        $value = DB::table('settings')->where('key', $key)->value('value');
+
+        if (!is_numeric($value)) {
+            return $default;
+        }
+
+        return (int) $value;
+    }
+
     public function index(Request $request)
     {
+        $lowStockThreshold = $this->getIntSetting('low_stock_threshold', 5);
+        $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
+
         $query = Item::with(['category', 'supplier', 'department'])
             ->orderBy('name');
 
         if ($request->filled('search')) {
-            $search = trim($request->search);
+            $search = trim((string) $request->search);
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('asset_tag', 'like', "%{$search}%")
                     ->orWhere('serial_number', 'like', "%{$search}%")
-                    ->orWhereHas('category', fn ($sub) => $sub->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('supplier', fn ($sub) => $sub->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('department', fn ($sub) => $sub->where('name', 'like', "%{$search}%"));
+                    ->orWhereHas('category', fn($sub) => $sub->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('supplier', fn($sub) => $sub->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('department', fn($sub) => $sub->where('name', 'like', "%{$search}%"));
             });
         }
 
-        $items = $query->paginate(10)->withQueryString();
+        if ($request->filled('stock')) {
+            if ($request->stock === 'out') {
+                $query->where('quantity', 0);
+            } elseif ($request->stock === 'low') {
+                $query->where('quantity', '>', 0)->where('quantity', '<', $lowStockThreshold);
+            } elseif ($request->stock === 'available') {
+                $query->where('quantity', '>', 0);
+            }
+        }
 
-        return view('inventory.index', compact('items'));
+        $items = $query->paginate($perPage)->withQueryString();
+
+        return response()->json(array_merge(
+            $items->toArray(),
+            [
+                'summary' => [
+                    'totalItems' => Item::count(),
+                    'lowStockCount' => Item::where('quantity', '>', 0)->where('quantity', '<', $lowStockThreshold)->count(),
+                    'outOfStockCount' => Item::where('quantity', 0)->count(),
+                ],
+            ]
+        ));
     }
 
     public function stockIn(Request $request, Item $item)
@@ -42,7 +77,9 @@ class InventoryController extends Controller
         $item->increment('quantity', $validated['quantity']);
         $item->refresh();
 
-        $item->syncAutomatedStatus();
+        if (method_exists($item, 'syncAutomatedStatus')) {
+            $item->syncAutomatedStatus();
+        }
 
         AssetLog::log(
             $item->id,
@@ -50,33 +87,30 @@ class InventoryController extends Controller
             "Stock in: +{$validated['quantity']}"
         );
 
-        if ($item->isLowStock()) {
-            SystemNotification::create([
-                'user_id' => Auth::id(),
-                'type' => 'warning',
-                'title' => 'Low Stock Alert',
-                'message' => "{$item->name} is running low (Qty: {$item->quantity})",
-                'url' => route('inventory.index'),
-            ]);
-        }
-
-        return back()->with('success', 'Stock added successfully.');
+        return response()->json([
+            'message' => 'Stock added successfully',
+            'item' => $item->load(['category', 'supplier', 'department']),
+        ]);
     }
 
     public function stockOut(Request $request, Item $item)
     {
+        $lowStockThreshold = $this->getIntSetting('low_stock_threshold', 5);
+
         $validated = $request->validate([
             'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
         if ($validated['quantity'] > $item->quantity) {
-            return back()->with('error', 'Not enough stock available.');
+            return response()->json(['message' => 'Not enough stock available.'], 422);
         }
 
         $item->decrement('quantity', $validated['quantity']);
         $item->refresh();
 
-        $item->syncAutomatedStatus();
+        if (method_exists($item, 'syncAutomatedStatus')) {
+            $item->syncAutomatedStatus();
+        }
 
         AssetLog::log(
             $item->id,
@@ -84,47 +118,19 @@ class InventoryController extends Controller
             "Stock out: -{$validated['quantity']}"
         );
 
-        if ($item->isLowStock()) {
+        if ((int) $item->quantity < $lowStockThreshold) {
             SystemNotification::create([
                 'user_id' => Auth::id(),
                 'type' => 'warning',
                 'title' => 'Low Stock Alert',
                 'message' => "{$item->name} is running low (Qty: {$item->quantity})",
-                'url' => route('inventory.index'),
+                'url' => '/inventory',
             ]);
         }
 
-        return back()->with('success', 'Stock removed successfully.');
+        return response()->json([
+            'message' => 'Stock removed successfully',
+            'item' => $item->load(['category', 'supplier', 'department']),
+        ]);
     }
-     
-        public function apiIndex()
-{
-    return response()->json(
-        Item::with(['category', 'supplier', 'department'])
-            ->orderBy('name')
-            ->paginate(10)
-    );
-}
-
-public function apiStockIn(Request $request, Item $item)
-{
-    $request->validate(['quantity' => 'required|integer|min:1']);
-
-    $item->increment('quantity', $request->quantity);
-
-    return response()->json(['message' => 'Stock added']);
-}
-
-public function apiStockOut(Request $request, Item $item)
-{
-    $request->validate(['quantity' => 'required|integer|min:1']);
-
-    if ($request->quantity > $item->quantity) {
-        return response()->json(['error' => 'Not enough stock'], 400);
-    }
-
-    $item->decrement('quantity', $request->quantity);
-
-    return response()->json(['message' => 'Stock removed']);
-}
 }

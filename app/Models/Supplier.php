@@ -31,6 +31,12 @@ class Supplier extends Model
         'name',
         'email',
         'phone',
+        'address',
+    ];
+
+    protected $hidden = [
+        'created_at',
+        'updated_at',
     ];
 
     public function items(): HasMany

@@ -71,33 +71,35 @@ class AuthController extends Controller
         return redirect()->route('login');
     }
 
-    //New Methods Using ReactJS
+    //New Methods Using ReactJS - Session Based Auth
     public function apiLogin(Request $request)
-{
-    $credentials = $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required'],
-    ]);
+    {
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
 
-    if (!Auth::attempt($credentials)) {
+        if (!Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Invalid credentials'
+            ], 401);
+        }
+
+        $request->session()->regenerate();
+
         return response()->json([
-            'message' => 'Invalid credentials'
-        ], 401);
+            'user' => Auth::user()
+        ], 200);
     }
 
-    $request->session()->regenerate();
+    public function apiLogout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
-    return response()->json([
-        'user' => Auth::user()
-    ]);
-}
-
-public function apiLogout(Request $request)
-{
-    Auth::logout();
-
-    return response()->json([
-        'message' => 'Logged out'
-    ]);
-}
+        return response()->json([
+            'message' => 'Logged out'
+        ]);
+    }
 }

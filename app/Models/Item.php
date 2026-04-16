@@ -11,6 +11,7 @@ class Item extends Model
 {
     protected $fillable = [
         'name',
+        'sku',
         'category_id',
         'supplier_id',
         'department_id',
@@ -31,6 +32,22 @@ class Item extends Model
     public const STATUS_ASSIGNED = 'assigned';
     public const STATUS_MAINTENANCE = 'maintenance';
     public const STATUS_RETIRED = 'retired';
+
+    /* ================= ReactJs ================= */
+protected $appends = ['is_low_stock'];
+
+protected $hidden = [
+    'created_at',
+    'updated_at',
+];
+
+public function getIsLowStockAttribute(): bool
+{
+    return $this->isLowStock();
+}
+
+
+
 
     /* ================= RELATIONSHIPS ================= */
 
@@ -101,28 +118,27 @@ class Item extends Model
     /* ================= AUTOMATION ================= */
 
     public function syncAutomatedStatus(): void
-    {
-        if ($this->isRetired()) {
-            return;
-        }
-
-        if ($this->quantity < 0) {
-            $this->quantity = 0;
-        }
-
-        $newStatus = self::STATUS_AVAILABLE;
-
-        if ($this->quantity <= 0) {
-            $newStatus = self::STATUS_MAINTENANCE;
-        } elseif ($this->hasActiveAssignment()) {
-            $newStatus = self::STATUS_ASSIGNED;
-        }
-
-        if ($this->status !== $newStatus) {
-            $this->update([
-                'quantity' => max(0, $this->quantity),
-                'status' => $newStatus,
-            ]);
-        }
+{
+    if ($this->status === self::STATUS_RETIRED) {
+        return;
     }
+
+    if ($this->quantity < 0) {
+        $this->quantity = 0;
+    }
+
+    $newStatus = self::STATUS_AVAILABLE;
+
+    if ($this->quantity <= 0) {
+        $newStatus = self::STATUS_MAINTENANCE;
+    } elseif ($this->activeAssignment()->exists()) {
+        $newStatus = self::STATUS_ASSIGNED;
+    }
+
+    if ($this->status !== $newStatus) {
+        $this->status = $newStatus;
+        $this->quantity = max(0, $this->quantity);
+        $this->save();
+    }
+}
 }

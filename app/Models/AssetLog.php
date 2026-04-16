@@ -22,6 +22,9 @@ class AssetLog extends Model
         'action',
         'notes',
     ];
+    protected $casts = [
+        'updated_at',
+    ];
 
     public static function log(int $itemId, string $action, ?string $notes = null): void
     {

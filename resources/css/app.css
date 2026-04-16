@@ -1,3 +1,5 @@
+/* file: resources/css/app.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -40,4 +42,24 @@ body {
 
 .badge-danger {
     @apply bg-red-100 text-red-700;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #0f172a;
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 9999px;
+    border: 2px solid #0f172a;
 }
