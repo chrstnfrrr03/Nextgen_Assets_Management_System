@@ -47,13 +47,13 @@ Route::middleware('web')->group(function () {
         Route::post('/users/{user}/impersonate', [UserController::class, 'impersonate']);
         Route::apiResource('users', UserController::class);
 
-        Route::get('/notifications', [NotificationController::class, 'index']);
-        Route::put('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
-        Route::put('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+        Route::get('/notifications', [NotificationController::class, 'apiIndex']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+        Route::patch('/notifications/{id}/unread', [NotificationController::class, 'markUnread']);
+        Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/{key}', [SettingController::class, 'update']);
-
-        
     });
 });

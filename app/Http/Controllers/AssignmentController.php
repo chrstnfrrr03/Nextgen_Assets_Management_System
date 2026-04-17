@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\AssetLog;
 use App\Models\Assignment;
 use App\Models\Item;
+use App\Models\SystemNotification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -92,6 +94,36 @@ class AssignmentController extends Controller
             "{$item->name} assigned to {$assignment->user->name}"
         );
 
+        $this->notifyAdmins(
+            'assignment_created',
+            'Asset Assigned',
+            "Asset '{$item->name}' was assigned to '{$assignment->user->name}'.",
+            '/assignments',
+            'assignment',
+            $assignment->id
+        );
+
+        $this->notifyUser(
+            (int) $assignment->user_id,
+            'assignment_created',
+            'Asset Assigned To You',
+            "You were assigned asset '{$item->name}'.",
+            '/assignments',
+            'assignment',
+            $assignment->id
+        );
+
+        if ((int) $item->quantity <= 5) {
+            $this->notifyAdmins(
+                'low_stock',
+                'Low Stock Alert',
+                "Asset '{$item->name}' is low in stock with quantity {$item->quantity}.",
+                '/inventory',
+                'item',
+                $item->id
+            );
+        }
+
         return response()->json($assignment, 201);
     }
 
@@ -120,9 +152,63 @@ class AssignmentController extends Controller
             ($assignment->item->name ?? 'Asset') . ' returned by ' . (Auth::user()?->name ?? 'System')
         );
 
+        $this->notifyAdmins(
+            'assignment_returned',
+            'Asset Returned',
+            "Asset '{$assignment->item->name}' was returned from '{$assignment->user->name}'.",
+            '/assignments',
+            'assignment',
+            $assignment->id
+        );
+
         return response()->json([
             'message' => 'Asset returned successfully',
             'assignment' => $assignment->fresh(['item', 'user', 'assignedDepartment']),
+        ]);
+    }
+
+    protected function notifyAdmins(
+        string $type,
+        string $title,
+        string $message,
+        string $url,
+        ?string $sourceType = null,
+        ?int $sourceId = null
+    ): void {
+        $admins = User::where('role', 'admin')->get();
+
+        foreach ($admins as $admin) {
+            SystemNotification::create([
+                'user_id' => $admin->id,
+                'type' => $type,
+                'title' => $title,
+                'message' => $message,
+                'url' => $url,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'read_at' => null,
+            ]);
+        }
+    }
+
+    protected function notifyUser(
+        int $userId,
+        string $type,
+        string $title,
+        string $message,
+        string $url,
+        ?string $sourceType = null,
+        ?int $sourceId = null
+    ): void {
+        SystemNotification::create([
+            'user_id' => $userId,
+            'type' => $type,
+            'title' => $title,
+            'message' => $message,
+            'url' => $url,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'read_at' => null,
         ]);
     }
 }

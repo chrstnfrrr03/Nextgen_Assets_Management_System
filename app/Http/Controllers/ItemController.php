@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AssetLog;
 use App\Models\Item;
+use App\Models\SystemNotification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -69,6 +71,7 @@ class ItemController extends Controller
         ]);
 
         $item = Item::create($validated);
+        $item->load(['category', 'supplier', 'department']);
 
         AssetLog::log(
             $item->id,
@@ -76,7 +79,27 @@ class ItemController extends Controller
             $item->name . ' created by ' . (Auth::user()?->name ?? 'System')
         );
 
-        return response()->json($item->load(['category', 'supplier', 'department']), 201);
+        $this->notifyAdmins(
+            'asset_created',
+            'Asset Created',
+            "Asset '{$item->name}' was created successfully.",
+            '/items',
+            'item',
+            $item->id
+        );
+
+        if ((int) $item->quantity <= 5) {
+            $this->notifyAdmins(
+                'low_stock',
+                'Low Stock Alert',
+                "Asset '{$item->name}' is low in stock with quantity {$item->quantity}.",
+                '/inventory',
+                'item',
+                $item->id
+            );
+        }
+
+        return response()->json($item, 201);
     }
 
     public function show(Item $item)
@@ -95,6 +118,7 @@ class ItemController extends Controller
     public function update(Request $request, Item $item)
     {
         $oldStatus = $item->status;
+        $oldQuantity = (int) $item->quantity;
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -111,6 +135,7 @@ class ItemController extends Controller
         ]);
 
         $item->update($validated);
+        $item->refresh()->load(['category', 'supplier', 'department']);
 
         AssetLog::log(
             $item->id,
@@ -118,11 +143,45 @@ class ItemController extends Controller
             'Status changed from ' . $oldStatus . ' to ' . $item->status . ' by ' . (Auth::user()?->name ?? 'System')
         );
 
-        return response()->json($item->fresh(['category', 'supplier', 'department']));
+        $this->notifyAdmins(
+            'asset_updated',
+            'Asset Updated',
+            "Asset '{$item->name}' was updated. Status: {$oldStatus} → {$item->status}.",
+            '/items',
+            'item',
+            $item->id
+        );
+
+        if ($item->status === 'maintenance' && $oldStatus !== 'maintenance') {
+            $this->notifyAdmins(
+                'maintenance_due',
+                'Maintenance Alert',
+                "Asset '{$item->name}' has been moved to maintenance.",
+                '/items',
+                'item',
+                $item->id
+            );
+        }
+
+        if ((int) $item->quantity <= 5 && $oldQuantity > 5) {
+            $this->notifyAdmins(
+                'low_stock',
+                'Low Stock Alert',
+                "Asset '{$item->name}' is low in stock with quantity {$item->quantity}.",
+                '/inventory',
+                'item',
+                $item->id
+            );
+        }
+
+        return response()->json($item);
     }
 
     public function destroy(Item $item)
     {
+        $itemName = $item->name;
+        $itemId = $item->id;
+
         AssetLog::log(
             $item->id,
             AssetLog::ACTION_DELETED,
@@ -131,6 +190,39 @@ class ItemController extends Controller
 
         $item->delete();
 
+        $this->notifyAdmins(
+            'asset_deleted',
+            'Asset Deleted',
+            "Asset '{$itemName}' was deleted.",
+            '/items',
+            'item',
+            $itemId
+        );
+
         return response()->json(['message' => 'Item deleted successfully']);
+    }
+
+    protected function notifyAdmins(
+        string $type,
+        string $title,
+        string $message,
+        string $url,
+        ?string $sourceType = null,
+        ?int $sourceId = null
+    ): void {
+        $admins = User::where('role', 'admin')->get();
+
+        foreach ($admins as $admin) {
+            SystemNotification::create([
+                'user_id' => $admin->id,
+                'type' => $type,
+                'title' => $title,
+                'message' => $message,
+                'url' => $url,
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+                'read_at' => null,
+            ]);
+        }
     }
 }

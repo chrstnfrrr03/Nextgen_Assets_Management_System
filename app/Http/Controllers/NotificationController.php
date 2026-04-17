@@ -8,70 +8,136 @@ use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request)
+    public function apiIndex(Request $request)
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         $perPage = max(5, min((int) $request->integer('per_page', 10), 50));
 
-        $query = SystemNotification::query()
-            ->where('user_id', Auth::id())
-            ->latest();
+        $notifications = $user->notifications()
+            ->latest()
+            ->paginate($perPage);
 
-        if ($request->filled('status')) {
-            if ($request->status === 'unread') {
-                $query->whereNull('read_at');
-            } elseif ($request->status === 'read') {
-                $query->whereNotNull('read_at');
-            }
-        }
+        $notifications->getCollection()->transform(function (SystemNotification $notification) {
+            return $this->transformNotification($notification);
+        });
 
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('search')) {
-            $search = trim((string) $request->search);
-
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('message', 'like', "%{$search}%");
-            });
-        }
-
-        $notifications = $query->paginate($perPage)->withQueryString();
-
-        $unreadCount = SystemNotification::query()
-            ->where('user_id', Auth::id())
-            ->whereNull('read_at')
-            ->count();
-
-        return response()->json(array_merge(
-            $notifications->toArray(),
-            ['unread_count' => $unreadCount]
-        ));
+        return response()->json($notifications);
     }
 
-    public function markRead(SystemNotification $notification)
+    public function unreadCount()
     {
-        abort_unless((int) $notification->user_id === (int) Auth::id(), 403);
+        $user = Auth::user();
 
-        if (is_null($notification->read_at)) {
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        return response()->json([
+            'count' => $user->notifications()->whereNull('read_at')->count(),
+        ]);
+    }
+
+    public function markRead($id)
+    {
+        $notification = $this->findUserNotification($id);
+
+        if (!$notification->read_at) {
             $notification->update([
                 'read_at' => now(),
             ]);
         }
 
-        return response()->json(['message' => 'Notification marked as read']);
+        return response()->json([
+            'message' => 'Notification marked as read.',
+            'notification' => $this->transformNotification($notification->fresh()),
+        ]);
+    }
+
+    public function markUnread($id)
+    {
+        $notification = $this->findUserNotification($id);
+
+        $notification->update([
+            'read_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Notification marked as unread.',
+            'notification' => $this->transformNotification($notification->fresh()),
+        ]);
     }
 
     public function markAllRead()
     {
-        SystemNotification::query()
-            ->where('user_id', Auth::id())
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $user->notifications()
             ->whereNull('read_at')
             ->update([
                 'read_at' => now(),
             ]);
 
-        return response()->json(['message' => 'All notifications marked as read']);
+        return response()->json([
+            'message' => 'All notifications marked as read.',
+        ]);
+    }
+
+    protected function findUserNotification($id): SystemNotification
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            abort(401, 'Unauthenticated');
+        }
+
+        return $user->notifications()->findOrFail($id);
+    }
+
+    protected function transformNotification(SystemNotification $notification): array
+    {
+        return [
+            'id' => $notification->id,
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'type' => $notification->type,
+            'url' => $this->resolveNotificationUrl($notification),
+            'source_type' => $notification->source_type,
+            'source_id' => $notification->source_id,
+            'read_at' => $notification->read_at,
+            'created_at' => $notification->created_at,
+            'is_read' => $notification->is_read,
+        ];
+    }
+
+    protected function resolveNotificationUrl(SystemNotification $notification): string
+    {
+        if (!empty($notification->url)) {
+            return $notification->url;
+        }
+
+        return match ($notification->type) {
+            'asset_created',
+            'asset_updated',
+            'asset_deleted',
+            'maintenance_due' => '/items',
+            'low_stock',
+            'inventory_alert' => '/inventory',
+            'assignment_created',
+            'assignment_returned',
+            'assignment_overdue' => '/assignments',
+            'user_created',
+            'user_updated' => '/users',
+            'settings_updated' => '/settings',
+            default => '/notifications',
+        };
     }
 }
