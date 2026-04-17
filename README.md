@@ -1,4 +1,3 @@
-// file: README.md
 # NextGen Assets Management System
 
 A Laravel + React asset management system for tracking assets, assignments, departments, inventory, suppliers, users, notifications, settings, and profile images.
@@ -62,7 +61,6 @@ This installs all backend and frontend dependencies.
 7. Create the environment file
 
 Run:
-
 copy .env.example .env
 
 This creates your local Laravel environment file.
@@ -70,8 +68,8 @@ This creates your local Laravel environment file.
 8. Generate the application key
 
 Run:
-
 php artisan key:generate
+
 9. Update the .env file
 
 Open the .env file in VS Code and make sure it contains these values:
@@ -117,7 +115,6 @@ create the default admin login
 11. Create the storage link
 
 Run:
-
 php artisan storage:link
 
 This is required for profile images and uploaded files.
@@ -125,7 +122,6 @@ This is required for profile images and uploaded files.
 12. Clear cached config and routes
 
 Run:
-
 php artisan optimize:clear
 
 This helps avoid old cached config issues on a fresh clone.
@@ -171,6 +167,7 @@ Run these one by one in VS Code terminal:
 
 git clone https://github.com/austinkalisik/Nextgen_Assets_Management_System.git
 cd Nextgen_Assets_Management_System
+
 composer install
 npm install
 copy .env.example .env
