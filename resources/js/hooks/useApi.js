@@ -5,6 +5,7 @@ import apiClient from '../api/client';
 const requestCache = new Map();
 const inFlightRequests = new Map();
 const DEFAULT_TTL = 2 * 60 * 1000;
+const CACHE_PREFIX = 'nextgen-api-cache:';
 
 function stableStringify(value) {
     try {
@@ -18,8 +19,37 @@ function buildCacheKey(endpoint, options) {
     return `${endpoint}::${stableStringify(options)}`;
 }
 
+function readSessionCache(cacheKey) {
+    try {
+        const raw = window.sessionStorage.getItem(`${CACHE_PREFIX}${cacheKey}`);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeSessionCache(cacheKey, value) {
+    try {
+        window.sessionStorage.setItem(
+            `${CACHE_PREFIX}${cacheKey}`,
+            JSON.stringify(value)
+        );
+    } catch {
+        return;
+    }
+}
+
+function removeSessionCache(cacheKey) {
+    try {
+        window.sessionStorage.removeItem(`${CACHE_PREFIX}${cacheKey}`);
+    } catch {
+        return;
+    }
+}
+
 function getCachedEntry(key, ttl) {
-    const entry = requestCache.get(key);
+    const memoryEntry = requestCache.get(key);
+    const entry = memoryEntry ?? readSessionCache(key);
 
     if (!entry) {
         return null;
@@ -27,7 +57,12 @@ function getCachedEntry(key, ttl) {
 
     if (Date.now() - entry.timestamp > ttl) {
         requestCache.delete(key);
+        removeSessionCache(key);
         return null;
+    }
+
+    if (!memoryEntry) {
+        requestCache.set(key, entry);
     }
 
     return entry;
@@ -50,13 +85,15 @@ async function fetchWithCache(endpoint, options, cacheKey, ttl, force = false) {
         .get(endpoint, options)
         .then((response) => {
             const data = response.data;
-
-            requestCache.set(cacheKey, {
+            const entry = {
                 data,
                 timestamp: Date.now(),
-            });
+            };
 
+            requestCache.set(cacheKey, entry);
+            writeSessionCache(cacheKey, entry);
             inFlightRequests.delete(cacheKey);
+
             return data;
         })
         .catch((error) => {
@@ -73,6 +110,7 @@ export function invalidateApiCache(prefix = '') {
     for (const key of requestCache.keys()) {
         if (!prefix || key.startsWith(prefix)) {
             requestCache.delete(key);
+            removeSessionCache(key);
         }
     }
 
