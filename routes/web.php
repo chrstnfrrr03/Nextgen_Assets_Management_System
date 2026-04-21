@@ -17,3 +17,4 @@ Route::get('/login', function () {
 Route::get('/{any}', function () {
     return view('spa');
 })->where('any', '^(?!api|storage|build).*$');
+

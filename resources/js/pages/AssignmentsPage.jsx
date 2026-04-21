@@ -51,6 +51,20 @@ function formatDate(value) {
     return new Date(value).toLocaleDateString();
 }
 
+function extractErrorMessage(error) {
+    const response = error?.response?.data;
+
+    if (response?.errors && typeof response.errors === 'object') {
+        const firstKey = Object.keys(response.errors)[0];
+
+        if (firstKey && Array.isArray(response.errors[firstKey]) && response.errors[firstKey][0]) {
+            return response.errors[firstKey][0];
+        }
+    }
+
+    return response?.message || error?.message || 'Failed to create assignment.';
+}
+
 export default function AssignmentsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -73,6 +87,9 @@ export default function AssignmentsPage() {
     };
 
     const [notice, setNotice] = useState('');
+    const [formError, setFormError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [showForm, setShowForm] = useState(searchParams.get('create') === '1');
     const [searchInput, setSearchInput] = useState(filters.search);
     const [form, setForm] = useState(defaultForm());
@@ -121,10 +138,27 @@ export default function AssignmentsPage() {
         [departmentsList, form.department_id]
     );
 
+    const requestedQuantity = Number.parseInt(String(form.quantity || 0), 10) || 0;
+    const maxQuantity = Number(selectedItem?.quantity || 0);
+
+    const canSubmit =
+        !submitting &&
+        Boolean(selectedItem) &&
+        Boolean(form.receiver_name.trim()) &&
+        Boolean(form.department_id) &&
+        requestedQuantity >= 1 &&
+        requestedQuantity <= maxQuantity;
+
     async function refreshAssignmentsPage() {
-        invalidateApiCache('/assignments');
-        invalidateApiCache('/items');
-        await Promise.all([refetch(), fetchItemsOptions(), fetchDepartmentsOptions()]);
+        setRefreshing(true);
+
+        try {
+            invalidateApiCache('/assignments');
+            invalidateApiCache('/items');
+            await Promise.all([refetch(), fetchItemsOptions(), fetchDepartmentsOptions()]);
+        } finally {
+            setRefreshing(false);
+        }
     }
 
     async function fetchItemsOptions() {
@@ -148,14 +182,21 @@ export default function AssignmentsPage() {
     async function handleSubmit(event) {
         event.preventDefault();
 
+        if (!canSubmit) {
+            setFormError('Please complete all required fields and make sure quantity does not exceed available stock.');
+            return;
+        }
+
         try {
+            setSubmitting(true);
             setNotice('');
+            setFormError('');
 
             const payload = {
-                item_id: form.item_id,
+                item_id: Number(form.item_id),
                 receiver_name: form.receiver_name.trim(),
-                department_id: form.department_id,
-                quantity: Number.parseInt(String(form.quantity || 1), 10),
+                department_id: Number(form.department_id),
+                quantity: requestedQuantity,
             };
 
             await apiClient.post('/assignments', payload);
@@ -164,9 +205,16 @@ export default function AssignmentsPage() {
             setForm(defaultForm());
             setShowForm(false);
 
+            const next = new URLSearchParams(searchParams);
+            next.delete('create');
+            setSearchParams(next);
+
             await refreshAssignmentsPage();
         } catch (err) {
             console.error(err);
+            setFormError(extractErrorMessage(err));
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -177,11 +225,13 @@ export default function AssignmentsPage() {
 
         try {
             setNotice('');
+            setFormError('');
             await apiClient.put(`/assignments/${id}/return`);
             setNotice('Asset returned successfully.');
             await refreshAssignmentsPage();
         } catch (err) {
             console.error(err);
+            setFormError(extractErrorMessage(err));
         }
     }
 
@@ -214,15 +264,25 @@ export default function AssignmentsPage() {
 
     function toggleForm() {
         setNotice('');
+        setFormError('');
 
         if (showForm) {
             setForm(defaultForm());
             setShowForm(false);
+
+            const next = new URLSearchParams(searchParams);
+            next.delete('create');
+            setSearchParams(next);
             return;
         }
 
         setForm(defaultForm());
         setShowForm(true);
+
+        const next = new URLSearchParams(searchParams);
+        next.set('create', '1');
+        setSearchParams(next);
+
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -277,7 +337,7 @@ export default function AssignmentsPage() {
                     </button>
 
                     <button type="button" onClick={() => void refreshAssignmentsPage()} className="btn-secondary">
-                        Refresh
+                        {refreshing ? 'Refreshing...' : 'Refresh'}
                     </button>
                 </div>
             </div>
@@ -285,6 +345,12 @@ export default function AssignmentsPage() {
             {notice ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                     {notice}
+                </div>
+            ) : null}
+
+            {formError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {formError}
                 </div>
             ) : null}
 
@@ -305,11 +371,11 @@ export default function AssignmentsPage() {
                                 <select
                                     value={form.item_id}
                                     onChange={(e) =>
-                                        setForm({
-                                            ...form,
+                                        setForm((prev) => ({
+                                            ...prev,
                                             item_id: e.target.value,
                                             quantity: 1,
-                                        })
+                                        }))
                                     }
                                     className="input-shell w-full"
                                     required
@@ -349,7 +415,7 @@ export default function AssignmentsPage() {
                                     <input
                                         type="text"
                                         value={form.receiver_name}
-                                        onChange={(e) => setForm({ ...form, receiver_name: e.target.value })}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, receiver_name: e.target.value }))}
                                         className="input-shell w-full"
                                         placeholder="Enter receiver name"
                                         required
@@ -360,7 +426,7 @@ export default function AssignmentsPage() {
                                     <label className="mb-1 block text-sm font-medium text-slate-700">Receiving Department</label>
                                     <select
                                         value={form.department_id}
-                                        onChange={(e) => setForm({ ...form, department_id: e.target.value })}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, department_id: e.target.value }))}
                                         className="input-shell w-full"
                                         required
                                     >
@@ -390,30 +456,35 @@ export default function AssignmentsPage() {
                                     <input
                                         type="number"
                                         min="1"
-                                        max={selectedItem?.quantity || 1}
+                                        max={maxQuantity || 1}
                                         value={form.quantity}
                                         onChange={(e) =>
-                                            setForm({
-                                                ...form,
+                                            setForm((prev) => ({
+                                                ...prev,
                                                 quantity: Number.parseInt(e.target.value || '1', 10),
-                                            })
+                                            }))
                                         }
                                         className="input-shell w-full"
                                         required
                                     />
+                                    {selectedItem && requestedQuantity > maxQuantity ? (
+                                        <p className="mt-2 text-xs text-red-600">
+                                            Quantity cannot be more than available stock.
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
 
                             <div className="flex gap-3">
                                 <button
                                     type="submit"
-                                    disabled={!selectedItem || !form.department_id || form.quantity > Number(selectedItem.quantity || 0)}
+                                    disabled={!canSubmit}
                                     className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    Create Assignment
+                                    {submitting ? 'Creating...' : 'Create Assignment'}
                                 </button>
 
-                                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+                                <button type="button" onClick={toggleForm} className="btn-secondary">
                                     Cancel
                                 </button>
                             </div>

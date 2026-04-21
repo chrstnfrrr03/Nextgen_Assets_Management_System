@@ -16,6 +16,8 @@ const DEFAULT_SETTINGS = {
     email_notifications_enabled: '1',
     maintenance_alerts_enabled: '1',
     allow_user_impersonation: '1',
+    system_logo: '',
+    system_logo_url: '',
 };
 
 export function SettingsProvider({ children }) {
@@ -37,7 +39,16 @@ export function SettingsProvider({ children }) {
 
             rows.forEach((row) => {
                 mapped[row.key] = row.value ?? '';
+
+                if (row.key === 'system_logo' && row.value) {
+                    const version = encodeURIComponent(row.updated_at ?? Date.now());
+                    mapped.system_logo_url = `/api/settings/branding/logo/file?v=${version}`;
+                }
             });
+
+            if (!mapped.system_logo) {
+                mapped.system_logo_url = '';
+            }
 
             setSettings(mapped);
         } catch (error) {
